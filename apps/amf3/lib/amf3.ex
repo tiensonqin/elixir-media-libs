@@ -10,5 +10,4 @@ defmodule Amf3 do
   def deserialize(binary) when is_binary(binary) do
     Amf3.Deserializer.deserialize(binary)
   end
-
 end

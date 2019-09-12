@@ -16,14 +16,18 @@ defmodule SimpleRtmpProxy.Client do
               has_sent_keyframe: false
   end
 
-  @spec relay_av_data(pid, Rtmp.ClientSession.Handler.av_type, Rtmp.timestamp, binary) :: :ok
+  @spec relay_av_data(pid, Rtmp.ClientSession.Handler.av_type(), Rtmp.timestamp(), binary) :: :ok
   def relay_av_data(pid, type, timestamp, data) do
     _ = send(pid, {:relay_av, type, timestamp, data})
     :ok
   end
 
   def init(connection_info, [stream_key, video_header, audio_header, metadata]) do
-    _ = Logger.debug("#{connection_info.connection_id}: client initialized for stream key #{stream_key}")
+    _ =
+      Logger.debug(
+        "#{connection_info.connection_id}: client initialized for stream key #{stream_key}"
+      )
+
     state = %State{
       connection_info: connection_info,
       stream_key: stream_key,
@@ -36,7 +40,10 @@ defmodule SimpleRtmpProxy.Client do
   end
 
   def handle_connection_response(%Events.ConnectionResponseReceived{was_accepted: true}, state) do
-    _ = Logger.debug("#{state.connection_info.connection_id}: Connection accepted, requesting publishing")
+    _ =
+      Logger.debug(
+        "#{state.connection_info.connection_id}: Connection accepted, requesting publishing"
+      )
 
     GenRtmpClient.start_publish(self(), state.stream_key, :live)
 
@@ -45,11 +52,15 @@ defmodule SimpleRtmpProxy.Client do
   end
 
   def handle_play_response(_respponse, state) do
-    raise("#{state.connection_info.connection_id}: Received playback response but playback should have never been requested")
+    raise(
+      "#{state.connection_info.connection_id}: Received playback response but playback should have never been requested"
+    )
   end
 
   def handle_play_reset(_event, state) do
-    raise("#{state.connection_info.connection_id}: Received play reset command but playback isn't expected'")
+    raise(
+      "#{state.connection_info.connection_id}: Received play reset command but playback isn't expected'"
+    )
   end
 
   def handle_metadata_received(_metadata, state) do
@@ -64,7 +75,12 @@ defmodule SimpleRtmpProxy.Client do
   end
 
   def handle_publish_response(event = %Events.PublishResponseReceived{was_accepted: true}, state) do
-    _ = Logger.debug("#{state.connection_info.connection_id}: Publish accepted for stream key #{event.stream_key}")
+    _ =
+      Logger.debug(
+        "#{state.connection_info.connection_id}: Publish accepted for stream key #{
+          event.stream_key
+        }"
+      )
 
     :ok = GenRtmpClient.publish_metadata(self(), state.stream_key, state.metadata)
     :ok = GenRtmpClient.publish_av_data(self(), state.stream_key, :audio, 0, state.audio_header)
@@ -88,19 +104,22 @@ defmodule SimpleRtmpProxy.Client do
   end
 
   def handle_message({:relay_av, type, timestamp, data}, state = %State{status: :publishing}) do
-    should_relay_data = case {state.has_sent_keyframe, type, is_keyframe(data)} do
-      {true, _, _} -> true
-      {false, :video, true} -> true
-      {false, _, _} -> false
-    end
+    should_relay_data =
+      case {state.has_sent_keyframe, type, is_keyframe(data)} do
+        {true, _, _} -> true
+        {false, :video, true} -> true
+        {false, _, _} -> false
+      end
 
-    state = case should_relay_data do
-      false -> state
+    state =
+      case should_relay_data do
+        false ->
+          state
 
-      true ->
-        :ok = GenRtmpClient.publish_av_data(self(), state.stream_key, type, timestamp, data)
-        %{state | has_sent_keyframe: true}      
-    end
+        true ->
+          :ok = GenRtmpClient.publish_av_data(self(), state.stream_key, type, timestamp, data)
+          %{state | has_sent_keyframe: true}
+      end
 
     {:ok, state}
   end
@@ -111,7 +130,10 @@ defmodule SimpleRtmpProxy.Client do
   end
 
   def handle_message(message, state) do
-    _ = Logger.debug("#{state.connection_info.connection_id}: Unknown message received: #{inspect(message)}")
+    _ =
+      Logger.debug(
+        "#{state.connection_info.connection_id}: Unknown message received: #{inspect(message)}"
+      )
 
     {:ok, state}
   end

@@ -22,7 +22,8 @@ defmodule SimpleRtmpServer.Worker do
   end
 
   defmodule Activity do
-    defstruct type: nil, # publishing or playing
+    # publishing or playing
+    defstruct type: nil,
               app_name: nil,
               stream_key: nil,
               stream_id: nil,
@@ -39,7 +40,7 @@ defmodule SimpleRtmpServer.Worker do
   end
 
   def init(session_id, client_ip, _args) do
-    _ = Logger.info "#{session_id}: simple rtmp server session started"
+    _ = Logger.info("#{session_id}: simple rtmp server session started")
 
     state = %State{
       session_id: session_id,
@@ -57,19 +58,26 @@ defmodule SimpleRtmpServer.Worker do
   def publish_requested(event = %RtmpEvents.PublishStreamRequested{}, state = %State{}) do
     activity_key = generate_activity_key(event.app_name, event.stream_key)
     publisher_key = generate_publisher_group_name(event.app_name, event.stream_key)
+
     case Map.fetch(state.activities, activity_key) do
       {:ok, activity} ->
         # Activity already exists, error if we are playing on the same
         # application and stream key that we are trying to publish on
         if activity.type != :publishing do
-          message = "#{state.session_id}: Attempted to publish on application (#{event.app_name}) " <>
-            "and stream key (#{event.stream_key}) that's already active with type #{activity.type}"
+          message =
+            "#{state.session_id}: Attempted to publish on application (#{event.app_name}) " <>
+              "and stream key (#{event.stream_key}) that's already active with type #{
+                activity.type
+              }"
 
           raise(message)
         end
 
-        _ = Logger.warn("#{state.session_id}: Duplicate publishing request for application '#{event.app_name}' " <>
-            "and stream key '#{event.stream_key}'")
+        _ =
+          Logger.warn(
+            "#{state.session_id}: Duplicate publishing request for application '#{event.app_name}' " <>
+              "and stream key '#{event.stream_key}'"
+          )
 
         {:accepted, state}
 
@@ -94,13 +102,15 @@ defmodule SimpleRtmpServer.Worker do
   def publish_finished(event = %RtmpEvents.PublishingFinished{}, state = %State{}) do
     activity_key = generate_activity_key(event.app_name, event.stream_key)
     publisher_key = generate_publisher_group_name(event.app_name, event.stream_key)
+
     case Map.fetch(state.activities, activity_key) do
       {:ok, activity} ->
         if activity.type != :publishing do
-          message = "#{state.session_id}: Attempted to stop publishing on application (#{event.app_name}) " <>
-            "and stream key (#{event.stream_key}) that's active with type #{activity.type}"
+          message =
+            "#{state.session_id}: Attempted to stop publishing on application (#{event.app_name}) " <>
+              "and stream key (#{event.stream_key}) that's active with type #{activity.type}"
 
-            raise(message)
+          raise(message)
         end
 
         :ok = :pg2.leave(publisher_key, self())
@@ -109,27 +119,38 @@ defmodule SimpleRtmpServer.Worker do
         {:ok, state}
 
       :error ->
-        _ = Logger.warn("#{state.session_id}: Attempted to stop publishing for application '#{event.app_name}' " <>
-            "and stream key '#{event.stream_key}' but no publish activity was found")
+        _ =
+          Logger.warn(
+            "#{state.session_id}: Attempted to stop publishing for application '#{event.app_name}' " <>
+              "and stream key '#{event.stream_key}' but no publish activity was found"
+          )
+
         {:ok, state}
     end
   end
 
   def play_requested(event = %RtmpEvents.PlayStreamRequested{}, state = %State{}) do
     activity_key = generate_activity_key(event.app_name, event.stream_key)
+
     case Map.fetch(state.activities, activity_key) do
       {:ok, activity} ->
         # Activity already exists, error if we are publishing on the same
         # application and stream key that we are trying to play for
         if activity.type != :playing do
-          message = "#{state.session_id}: Attempted to play on application (#{event.app_name}) " <>
-            "and stream key (#{event.stream_key}) that's already active with type #{activity.type}"
+          message =
+            "#{state.session_id}: Attempted to play on application (#{event.app_name}) " <>
+              "and stream key (#{event.stream_key}) that's already active with type #{
+                activity.type
+              }"
 
           raise(message)
         end
 
-        _ = Logger.warn("#{state.session_id}: Duplicate play request for application '#{event.app_name}' " <>
-            "and stream key '#{event.stream_key}'")
+        _ =
+          Logger.warn(
+            "#{state.session_id}: Duplicate play request for application '#{event.app_name}' " <>
+              "and stream key '#{event.stream_key}'"
+          )
 
         {:accepted, state}
 
@@ -150,8 +171,18 @@ defmodule SimpleRtmpServer.Worker do
         publisher_key = generate_publisher_group_name(event.app_name, event.stream_key)
         :pg2.create(publisher_key)
         publisher_processes = :pg2.get_members(publisher_key)
-        :ok = send_to_processes(publisher_processes, {:metadata_request, event.app_name, event.stream_key})
-        :ok = send_to_processes(publisher_processes, {:sequence_header_request, event.app_name, event.stream_key})
+
+        :ok =
+          send_to_processes(
+            publisher_processes,
+            {:metadata_request, event.app_name, event.stream_key}
+          )
+
+        :ok =
+          send_to_processes(
+            publisher_processes,
+            {:sequence_header_request, event.app_name, event.stream_key}
+          )
 
         {:accepted, state}
     end
@@ -159,13 +190,15 @@ defmodule SimpleRtmpServer.Worker do
 
   def play_finished(event = %RtmpEvents.PlayStreamFinished{}, state = %State{}) do
     activity_key = generate_activity_key(event.app_name, event.stream_key)
+
     case Map.fetch(state.activities, activity_key) do
       {:ok, activity} ->
         if activity.type != :playing do
-          message = "#{state.session_id}: Attempted to stop playing on application (#{event.app_name}) " <>
-            "and stream key (#{event.stream_key}) that's active with type #{activity.type}"
+          message =
+            "#{state.session_id}: Attempted to stop playing on application (#{event.app_name}) " <>
+              "and stream key (#{event.stream_key}) that's active with type #{activity.type}"
 
-            raise(message)
+          raise(message)
         end
 
         :ok = :pg2.leave(activity_key, self())
@@ -174,8 +207,12 @@ defmodule SimpleRtmpServer.Worker do
         {:ok, state}
 
       :error ->
-        _ = Logger.warn("#{state.session_id}: Attempted to stop playing for application '#{event.app_name}' " <>
-            "and stream key '#{event.stream_key}' but no publish activity was found")
+        _ =
+          Logger.warn(
+            "#{state.session_id}: Attempted to stop playing for application '#{event.app_name}' " <>
+              "and stream key '#{event.stream_key}' but no publish activity was found"
+          )
+
         {:ok, state}
     end
   end
@@ -198,25 +235,29 @@ defmodule SimpleRtmpServer.Worker do
   def audio_video_data_received(event = %RtmpEvents.AudioVideoDataReceived{}, state = %State{}) do
     activity_key = generate_activity_key(event.app_name, event.stream_key)
 
-    state = case event.data_type == :video && is_video_sequence_header(event.data) do
-      true ->
-        activity = Map.fetch!(state.activities, activity_key)
-        activity = %{activity | video_sequence_header_event: event}
-        activities = Map.put(state.activities, activity_key, activity)
-        %{state | activities: activities}
+    state =
+      case event.data_type == :video && is_video_sequence_header(event.data) do
+        true ->
+          activity = Map.fetch!(state.activities, activity_key)
+          activity = %{activity | video_sequence_header_event: event}
+          activities = Map.put(state.activities, activity_key, activity)
+          %{state | activities: activities}
 
-      false -> state
-    end
+        false ->
+          state
+      end
 
-    state = case event.data_type == :audio && is_audio_sequence_header(event.data) do
-      true ->
-        activity = Map.fetch!(state.activities, activity_key)
-        activity = %{activity | audio_sequence_header_event: event}
-        activities = Map.put(state.activities, activity_key, activity)
-        %{state | activities: activities}
+    state =
+      case event.data_type == :audio && is_audio_sequence_header(event.data) do
+        true ->
+          activity = Map.fetch!(state.activities, activity_key)
+          activity = %{activity | audio_sequence_header_event: event}
+          activities = Map.put(state.activities, activity_key, activity)
+          %{state | activities: activities}
 
-      false -> state
-    end
+        false ->
+          state
+      end
 
     :pg2.create(activity_key)
     player_processes = :pg2.get_members(activity_key)
@@ -233,10 +274,7 @@ defmodule SimpleRtmpServer.Worker do
   end
 
   def byte_io_totals_updated(event = %RtmpEvents.NewByteIOTotals{}, state = %State{}) do
-    state = %{state |
-      bytes_sent: event.bytes_sent,
-      bytes_received: event.bytes_received
-    }
+    state = %{state | bytes_sent: event.bytes_sent, bytes_received: event.bytes_received}
 
     {:ok, state}
   end
@@ -260,20 +298,24 @@ defmodule SimpleRtmpServer.Worker do
   def handle_message({:av_data, event = %RtmpEvents.AudioVideoDataReceived{}}, state = %State{}) do
     activity_key = generate_activity_key(event.app_name, event.stream_key)
 
-    state = case Map.fetch(state.activities, activity_key) do
-      :error ->
-        # race condition, AV data sent while activity was being closed.  Can be ignored I believe
-        state
+    state =
+      case Map.fetch(state.activities, activity_key) do
+        :error ->
+          # race condition, AV data sent while activity was being closed.  Can be ignored I believe
+          state
 
-      {:ok, activity} ->
-        should_send_message = case {activity.has_sent_keyframe, is_keyframe(event.data)} do
-          {true, _} -> true
-          {false, true} -> true
-          _ -> false
-        end
+        {:ok, activity} ->
+          should_send_message =
+            case {activity.has_sent_keyframe, is_keyframe(event.data)} do
+              {true, _} -> true
+              {false, true} -> true
+              _ -> false
+            end
 
-        if should_send_message, do: send_message(state, event, activity, activity_key), else: state
-    end
+          if should_send_message,
+            do: send_message(state, event, activity, activity_key),
+            else: state
+      end
 
     {:ok, state}
   end
@@ -290,14 +332,18 @@ defmodule SimpleRtmpServer.Worker do
     {:ok, state}
   end
 
-  def handle_message({:sequence_header, event = %RtmpEvents.AudioVideoDataReceived{}}, state = %State{}) do
+  def handle_message(
+        {:sequence_header, event = %RtmpEvents.AudioVideoDataReceived{}},
+        state = %State{}
+      ) do
     activity_key = generate_activity_key(event.app_name, event.stream_key)
     {:ok, activity} = Map.fetch(state.activities, activity_key)
 
-    activity = case event.data_type do
-      :video -> %{activity | video_sequence_header_event: event}
-      :audio -> %{activity | audio_sequence_header_event: event}
-    end
+    activity =
+      case event.data_type do
+        :video -> %{activity | video_sequence_header_event: event}
+        :audio -> %{activity | audio_sequence_header_event: event}
+      end
 
     activities = Map.put(state.activities, activity_key, activity)
     state = %{state | activities: activities}
@@ -307,6 +353,7 @@ defmodule SimpleRtmpServer.Worker do
 
   def handle_message({:metadata_request, app_name, stream_key}, state = %State{}) do
     activity_key = generate_activity_key(app_name, stream_key)
+
     case Map.fetch(state.activities, activity_key) do
       {:ok, activity} ->
         if activity.last_metadata_event != nil do
@@ -317,29 +364,42 @@ defmodule SimpleRtmpServer.Worker do
 
         {:ok, state}
 
-      :error -> {:ok, state}
+      :error ->
+        {:ok, state}
     end
   end
 
   def handle_message({:sequence_header_request, app_name, stream_key}, state = %State{}) do
     activity_key = generate_activity_key(app_name, stream_key)
+
     case Map.fetch(state.activities, activity_key) do
       {:ok, activity} ->
         if activity.video_sequence_header_event != nil do
           :pg2.create(activity_key)
           player_processes = :pg2.get_members(activity_key)
-          :ok = send_to_processes(player_processes, {:sequence_header, activity.video_sequence_header_event})
+
+          :ok =
+            send_to_processes(
+              player_processes,
+              {:sequence_header, activity.video_sequence_header_event}
+            )
         end
 
         if activity.audio_sequence_header_event != nil do
           :pg2.create(activity_key)
           player_processes = :pg2.get_members(activity_key)
-          :ok = send_to_processes(player_processes, {:sequence_header, activity.audio_sequence_header_event})
+
+          :ok =
+            send_to_processes(
+              player_processes,
+              {:sequence_header, activity.audio_sequence_header_event}
+            )
         end
 
         {:ok, state}
 
-      :error -> {:ok, state}
+      :error ->
+        {:ok, state}
     end
   end
 
@@ -381,14 +441,19 @@ defmodule SimpleRtmpServer.Worker do
   defp is_video_sequence_header(<<0x17, 0x00, _::binary>>), do: true
   defp is_video_sequence_header(_), do: false
 
-  defp is_audio_sequence_header(<<0xaf, 0x00, _::binary>>), do: true
+  defp is_audio_sequence_header(<<0xAF, 0x00, _::binary>>), do: true
   defp is_audio_sequence_header(_), do: false
 
   defp send_sequence_header(nil, _, _, _) do
     :ok
   end
 
-  defp send_sequence_header(event = %RtmpEvents.AudioVideoDataReceived{}, forced_timestamp, stream_id, state) do
+  defp send_sequence_header(
+         event = %RtmpEvents.AudioVideoDataReceived{},
+         forced_timestamp,
+         stream_id,
+         state
+       ) do
     outbound_message = %GenRtmpServer.AudioVideoData{
       data_type: event.data_type,
       data: event.data,
@@ -399,7 +464,12 @@ defmodule SimpleRtmpServer.Worker do
     GenRtmpServer.send_message(self(), outbound_message, stream_id)
   end
 
-  defp send_message(state, event = %RtmpEvents.AudioVideoDataReceived{data_type: :video}, activity, activity_key) do
+  defp send_message(
+         state,
+         event = %RtmpEvents.AudioVideoDataReceived{data_type: :video},
+         activity,
+         activity_key
+       ) do
     outbound_message = %GenRtmpServer.AudioVideoData{
       data_type: event.data_type,
       data: event.data,
@@ -408,20 +478,34 @@ defmodule SimpleRtmpServer.Worker do
 
     stream_id = activity.stream_id
 
-    state = case activity.has_sent_keyframe do
-      true -> state
-      false ->
-        send_sequence_header(activity.video_sequence_header_event, event.received_at_timestamp, activity.stream_id, state)
-        activity = %{activity | has_sent_keyframe: true}
-        activities = Map.put(state.activities, activity_key, activity)
-        %{state | activities: activities}
-    end
+    state =
+      case activity.has_sent_keyframe do
+        true ->
+          state
+
+        false ->
+          send_sequence_header(
+            activity.video_sequence_header_event,
+            event.received_at_timestamp,
+            activity.stream_id,
+            state
+          )
+
+          activity = %{activity | has_sent_keyframe: true}
+          activities = Map.put(state.activities, activity_key, activity)
+          %{state | activities: activities}
+      end
 
     GenRtmpServer.send_message(self(), outbound_message, stream_id, event.timestamp)
     state
   end
 
-  defp send_message(state, event = %RtmpEvents.AudioVideoDataReceived{data_type: :audio}, activity, activity_key) do
+  defp send_message(
+         state,
+         event = %RtmpEvents.AudioVideoDataReceived{data_type: :audio},
+         activity,
+         activity_key
+       ) do
     outbound_message = %GenRtmpServer.AudioVideoData{
       data_type: event.data_type,
       data: event.data,
@@ -429,17 +513,26 @@ defmodule SimpleRtmpServer.Worker do
     }
 
     stream_id = activity.stream_id
-    state = case activity.has_sent_audio_header do
-      true -> state
-      false ->
-        send_sequence_header(activity.audio_sequence_header_event, event.received_at_timestamp, activity.stream_id, state)
-        activity = %{activity | has_sent_audio_header: true}
-        activities = Map.put(state.activities, activity_key, activity)
-        %{state | activities: activities}
-    end
+
+    state =
+      case activity.has_sent_audio_header do
+        true ->
+          state
+
+        false ->
+          send_sequence_header(
+            activity.audio_sequence_header_event,
+            event.received_at_timestamp,
+            activity.stream_id,
+            state
+          )
+
+          activity = %{activity | has_sent_audio_header: true}
+          activities = Map.put(state.activities, activity_key, activity)
+          %{state | activities: activities}
+      end
 
     GenRtmpServer.send_message(self(), outbound_message, stream_id, event.timestamp)
     state
   end
-
 end

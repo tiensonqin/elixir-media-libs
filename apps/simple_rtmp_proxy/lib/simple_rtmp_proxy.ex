@@ -1,5 +1,4 @@
 defmodule SimpleRtmpProxy do
-
   def main(args) do
     import Supervisor.Spec, warn: false
 
@@ -13,7 +12,9 @@ defmodule SimpleRtmpProxy do
 
     Process.sleep(:infinity)
   end
-  
+
   defp parse_args([in_port, host, out_port, app]), do: {in_port, host, out_port, app}
-  defp parse_args(_), do: raise("Expected parameters: input_port output_host output_port output_app")
+
+  defp parse_args(_),
+    do: raise("Expected parameters: input_port output_host output_port output_app")
 end

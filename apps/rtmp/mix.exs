@@ -10,12 +10,12 @@ defmodule Rtmp.Mixfile do
       deps_path: "../../deps",
       lockfile: "../../mix.lock",
       elixir: "~> 1.3",
-      build_embedded: Mix.env == :prod,
-      start_permanent: Mix.env == :prod,
+      build_embedded: Mix.env() == :prod,
+      start_permanent: Mix.env() == :prod,
       deps: deps(),
       package: package(),
       description: description()
-     ]
+    ]
   end
 
   def application do
@@ -23,9 +23,10 @@ defmodule Rtmp.Mixfile do
   end
 
   defp deps do
-    environment_specific_deps(Mix.env) ++ [
-      {:ex_doc, ">= 0.0.0", only: [:dev, :umbrella]}
-    ]
+    environment_specific_deps(Mix.env()) ++
+      [
+        {:ex_doc, ">= 0.0.0", only: [:dev, :umbrella]}
+      ]
   end
 
   defp environment_specific_deps(:umbrella), do: [{:amf0, in_umbrella: true}]
@@ -42,6 +43,6 @@ defmodule Rtmp.Mixfile do
 
   defp description do
     "Library containing functionality for handling RTMP connections, from handshaking, " <>
-    "serialization, deserialization, and logical flow of RTMP data."
+      "serialization, deserialization, and logical flow of RTMP data."
   end
 end

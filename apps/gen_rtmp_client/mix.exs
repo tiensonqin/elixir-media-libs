@@ -10,8 +10,8 @@ defmodule GenRtmpClient.Mixfile do
       deps_path: "../../deps",
       lockfile: "../../mix.lock",
       elixir: "~> 1.4",
-      build_embedded: Mix.env == :prod,
-      start_permanent: Mix.env == :prod,
+      build_embedded: Mix.env() == :prod,
+      start_permanent: Mix.env() == :prod,
       package: package(),
       description: "Behaviour to make it easy to create custom RTMP clients",
       deps: deps()
@@ -26,20 +26,20 @@ defmodule GenRtmpClient.Mixfile do
 
   defp deps do
     [
-      {:ex_doc, "~> 0.14", only: [:dev, :publish, :umbrella]} |
-      get_umbrella_dependencies(Mix.env)
+      {:ex_doc, "~> 0.14", only: [:dev, :publish, :umbrella]}
+      | get_umbrella_dependencies(Mix.env())
     ]
   end
 
   defp get_umbrella_dependencies(:umbrella) do
     [
-      {:rtmp, in_umbrella: true},
+      {:rtmp, in_umbrella: true}
     ]
   end
 
   defp get_umbrella_dependencies(_) do
     [
-      {:rtmp, "~> 0.2.0", hex: :eml_rtmp},
+      {:rtmp, "~> 0.2.0", hex: :eml_rtmp}
     ]
   end
 
@@ -48,7 +48,10 @@ defmodule GenRtmpClient.Mixfile do
       name: :eml_gen_rtmp_client,
       maintainers: ["Matthew Shapiro"],
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/KallDrexx/elixir-media-libs/tree/master/apps/gen_rtmp_client"}
+      links: %{
+        "GitHub" =>
+          "https://github.com/KallDrexx/elixir-media-libs/tree/master/apps/gen_rtmp_client"
+      }
     ]
   end
 end

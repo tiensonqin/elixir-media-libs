@@ -4,19 +4,19 @@ defmodule GenRtmpServer.RtmpOptions do
   """
 
   @type t :: %__MODULE__{
-    port: pos_integer(),
-    fms_version: String.t,
-    chunk_size: pos_integer(),
-    log_mode: :none | :raw_io
-  }
+          port: pos_integer(),
+          fms_version: String.t(),
+          chunk_size: pos_integer(),
+          log_mode: :none | :raw_io
+        }
 
-  @type options_list :: [port: pos_integer, fms_version: String.t, chunk_size: pos_integer]
+  @type options_list :: [port: pos_integer, fms_version: String.t(), chunk_size: pos_integer]
 
   defstruct port: 1935,
             fms_version: "FMS/3,0,1,1233",
             chunk_size: 4096,
             log_mode: :none
-  
+
   @spec to_keyword_list(%GenRtmpServer.RtmpOptions{}) :: options_list
   def to_keyword_list(options = %GenRtmpServer.RtmpOptions{}) do
     [

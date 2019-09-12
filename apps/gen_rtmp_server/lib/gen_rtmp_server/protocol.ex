@@ -35,8 +35,19 @@ defmodule GenRtmpServer.Protocol do
   end
 
   @doc "Starts the protocol for the accepted socket"
-  def start_link(ref, socket, transport, [module, options = %GenRtmpServer.RtmpOptions{}, adopter_args]) do
-    :proc_lib.start_link(__MODULE__, :init, [ref, socket, transport, module, options, adopter_args])
+  def start_link(ref, socket, transport, [
+        module,
+        options = %GenRtmpServer.RtmpOptions{},
+        adopter_args
+      ]) do
+    :proc_lib.start_link(__MODULE__, :init, [
+      ref,
+      socket,
+      transport,
+      module,
+      options,
+      adopter_args
+    ])
   end
 
   @doc false
@@ -56,10 +67,11 @@ defmodule GenRtmpServer.Protocol do
     session_id = UUID.uuid4()
     client_ip_string = get_ip_address(socket)
 
-    _ = Logger.info "#{session_id}: client connected from ip #{client_ip_string}"
+    _ = Logger.info("#{session_id}: client connected from ip #{client_ip_string}")
 
-    {handshake_instance, %Rtmp.Handshake.ParseResult{bytes_to_send: bytes_to_send}}
-      = Rtmp.Handshake.new(:unknown) # Let the client's handshake tell us the format
+    # Let the client's handshake tell us the format
+    {handshake_instance, %Rtmp.Handshake.ParseResult{bytes_to_send: bytes_to_send}} =
+      Rtmp.Handshake.new(:unknown)
 
     :ok = transport.send(socket, bytes_to_send)
 
@@ -73,7 +85,7 @@ defmodule GenRtmpServer.Protocol do
       session_id: session_id,
       gen_rtmp_server_adopter: module,
       session_config: session_config,
-      adopter_args: adopter_args,
+      adopter_args: adopter_args
     }
 
     set_socket_options(state)
@@ -94,16 +106,18 @@ defmodule GenRtmpServer.Protocol do
     # TODO: Should probably make sure sequence header packets are never dropped.
     # Otherwise the video is useless.
 
-    can_be_dropped = case packet_type do
-      :audio -> true
-      :video -> true
-      _ -> false
-    end
+    can_be_dropped =
+      case packet_type do
+        :audio -> true
+        :video -> true
+        _ -> false
+      end
 
-    state = case can_be_dropped do
-      false -> send_undroppable_packet(state, binary)
-      true -> send_droppable_packet(state, binary)
-    end
+    state =
+      case can_be_dropped do
+        false -> send_undroppable_packet(state, binary)
+        true -> send_droppable_packet(state, binary)
+      end
 
     {:noreply, state}
   end
@@ -111,35 +125,55 @@ defmodule GenRtmpServer.Protocol do
   def handle_info({:tcp, _, binary}, state = %State{handshake_completed: false}) do
     case Rtmp.Handshake.process_bytes(state.handshake_instance, binary) do
       {instance, result = %Rtmp.Handshake.ParseResult{current_state: :waiting_for_data}} ->
-        if byte_size(result.bytes_to_send) > 0, do: state.transport.send(state.socket, result.bytes_to_send)
+        if byte_size(result.bytes_to_send) > 0,
+          do: state.transport.send(state.socket, result.bytes_to_send)
 
         new_state = %{state | handshake_instance: instance}
         set_socket_options(new_state)
         {:noreply, new_state}
-      
+
       {instance, result = %Rtmp.Handshake.ParseResult{current_state: :success}} ->
-        if byte_size(result.bytes_to_send) > 0, do: state.transport.send(state.socket, result.bytes_to_send)
+        if byte_size(result.bytes_to_send) > 0,
+          do: state.transport.send(state.socket, result.bytes_to_send)
 
-        {_, %Rtmp.Handshake.HandshakeResult{remaining_binary: remaining_binary}}
-          = Rtmp.Handshake.get_handshake_result(instance)
+        {_, %Rtmp.Handshake.HandshakeResult{remaining_binary: remaining_binary}} =
+          Rtmp.Handshake.get_handshake_result(instance)
 
-        {:ok, protocol_pid} = Rtmp.Protocol.Handler.start_link(state.session_id, self(), __MODULE__)
-        {:ok, session_pid} = Rtmp.ServerSession.Handler.start_link(state.session_id, state.session_config)
+        {:ok, protocol_pid} =
+          Rtmp.Protocol.Handler.start_link(state.session_id, self(), __MODULE__)
 
-        :ok = Rtmp.Protocol.Handler.set_session(protocol_pid, session_pid, Rtmp.ServerSession.Handler)
-        :ok = Rtmp.ServerSession.Handler.set_rtmp_output_handler(session_pid, protocol_pid, Rtmp.Protocol.Handler)
+        {:ok, session_pid} =
+          Rtmp.ServerSession.Handler.start_link(state.session_id, state.session_config)
+
+        :ok =
+          Rtmp.Protocol.Handler.set_session(protocol_pid, session_pid, Rtmp.ServerSession.Handler)
+
+        :ok =
+          Rtmp.ServerSession.Handler.set_rtmp_output_handler(
+            session_pid,
+            protocol_pid,
+            Rtmp.Protocol.Handler
+          )
+
         :ok = Rtmp.ServerSession.Handler.set_event_handler(session_pid, self(), __MODULE__)
 
-        {:ok, adopter_state} = state.gen_rtmp_server_adopter.init(state.session_id, get_ip_address(state.socket), state.adopter_args)
+        {:ok, adopter_state} =
+          state.gen_rtmp_server_adopter.init(
+            state.session_id,
+            get_ip_address(state.socket),
+            state.adopter_args
+          )
+
         :ok = Rtmp.Protocol.Handler.notify_input(protocol_pid, remaining_binary)
         :ok = Rtmp.ServerSession.Handler.send_stream_zero_begin(session_pid)
 
-        state = %{state |
-          handshake_instance: nil,
-          handshake_completed: true,
-          protocol_handler_pid: protocol_pid,
-          session_handler_pid: session_pid,
-          adopter_state: adopter_state
+        state = %{
+          state
+          | handshake_instance: nil,
+            handshake_completed: true,
+            protocol_handler_pid: protocol_pid,
+            session_handler_pid: session_pid,
+            adopter_state: adopter_state
         }
 
         state = prepare_log_files(state)
@@ -148,11 +182,11 @@ defmodule GenRtmpServer.Protocol do
         {:noreply, state}
 
       {_, %Rtmp.Handshake.ParseResult{current_state: :failure}} ->
-        _ = Logger.info "#{state.session_id}: Client failed the handshake, disconnecting..."
+        _ = Logger.info("#{state.session_id}: Client failed the handshake, disconnecting...")
 
         state.transport.close(state.socket)
         {:noreply, state}
-    end    
+    end
   end
 
   def handle_info({:tcp, _, binary}, state = %State{}) do
@@ -164,7 +198,7 @@ defmodule GenRtmpServer.Protocol do
   end
 
   def handle_info({:tcp_closed, _}, state = %State{}) do
-    _ = Logger.info "#{state.session_id}: socket closed"
+    _ = Logger.info("#{state.session_id}: socket closed")
 
     {:ok, adopter_state} = state.gen_rtmp_server_adopter.handle_disconnection(state.adopter_state)
     state = %{state | adopter_state: adopter_state}
@@ -185,12 +219,15 @@ defmodule GenRtmpServer.Protocol do
   def handle_info({:inet_reply, _socket, _status}, state) do
     {:noreply, state}
   end
-  
+
   def handle_info(message, state = %State{}) do
-    {:ok, adopter_state} = state.gen_rtmp_server_adopter.handle_message(message, state.adopter_state)
+    {:ok, adopter_state} =
+      state.gen_rtmp_server_adopter.handle_message(message, state.adopter_state)
+
     state = %{state | adopter_state: adopter_state}
 
-    set_socket_options(state) # Just in case
+    # Just in case
+    set_socket_options(state)
     {:noreply, state}
   end
 
@@ -204,7 +241,7 @@ defmodule GenRtmpServer.Protocol do
         {:error, reason}
     end
   end
-  
+
   defp set_socket_options(state = %State{}) do
     # Ignore the result, as theoretically a tcp closed message should be arriving
     # that will kill this connection
@@ -213,20 +250,24 @@ defmodule GenRtmpServer.Protocol do
 
   defp create_session_config(options) do
     config = %Rtmp.ServerSession.Configuration{}
-    config = case Keyword.fetch(options, :fms_version) do
-      {:ok, value} -> %{config| fms_version: value}
-      :error -> config
-    end
 
-    config = case Keyword.fetch(options, :chunk_size) do
-      {:ok, value} -> %{config| chunk_size: value}
-      :error -> config
-    end
+    config =
+      case Keyword.fetch(options, :fms_version) do
+        {:ok, value} -> %{config | fms_version: value}
+        :error -> config
+      end
 
-    config = case Keyword.fetch(options, :log_mode) do
-      {:ok, value} -> %{config| io_log_mode: value}
-      :error -> config
-    end
+    config =
+      case Keyword.fetch(options, :chunk_size) do
+        {:ok, value} -> %{config | chunk_size: value}
+        :error -> config
+      end
+
+    config =
+      case Keyword.fetch(options, :log_mode) do
+        {:ok, value} -> %{config | io_log_mode: value}
+        :error -> config
+      end
 
     config
   end
@@ -238,12 +279,22 @@ defmodule GenRtmpServer.Protocol do
 
   defp handle_event(event = %RtmpEvents.ConnectionRequested{}, state) do
     case state.gen_rtmp_server_adopter.connection_requested(event, state.adopter_state) do
-      {:accepted, adopter_state} -> 
-        _ = Logger.info("#{state.session_id}: Connection request accepted (app: '#{event.app_name}')")
+      {:accepted, adopter_state} ->
+        _ =
+          Logger.info(
+            "#{state.session_id}: Connection request accepted (app: '#{event.app_name}')"
+          )
+
         handle_accepted_request(state, event.request_id, adopter_state)
 
       {{:rejected, command, reason}, adopter_state} ->
-        _ = Logger.info("#{state.session_id}: Connection request rejected (app: '#{event.app_name}') - #{reason}")
+        _ =
+          Logger.info(
+            "#{state.session_id}: Connection request rejected (app: '#{event.app_name}') - #{
+              reason
+            }"
+          )
+
         handle_rejected_request(command, state, event.request_id, adopter_state)
     end
   end
@@ -251,18 +302,31 @@ defmodule GenRtmpServer.Protocol do
   defp handle_event(event = %RtmpEvents.PublishStreamRequested{}, state) do
     case state.gen_rtmp_server_adopter.publish_requested(event, state.adopter_state) do
       {:accepted, adopter_state} ->
-        _ = Logger.info("#{state.session_id}: Publish stream request accepted (app: '#{event.app_name}', key: '#{event.stream_key}')")
+        _ =
+          Logger.info(
+            "#{state.session_id}: Publish stream request accepted (app: '#{event.app_name}', key: '#{
+              event.stream_key
+            }')"
+          )
+
         handle_accepted_request(state, event.request_id, adopter_state)
 
       {{:rejected, command, reason}, adopter_state} ->
-        _ = Logger.info("#{state.session_id}: Publish stream request rejected (app: '#{event.app_name}', key: '#{event.stream_key}') - #{reason}")
+        _ =
+          Logger.info(
+            "#{state.session_id}: Publish stream request rejected (app: '#{event.app_name}', key: '#{
+              event.stream_key
+            }') - #{reason}"
+          )
 
         handle_rejected_request(command, state, event.request_id, adopter_state)
     end
   end
 
   defp handle_event(event = %RtmpEvents.PublishingFinished{}, state) do
-    {:ok, adopter_state} = state.gen_rtmp_server_adopter.publish_finished(event, state.adopter_state)
+    {:ok, adopter_state} =
+      state.gen_rtmp_server_adopter.publish_finished(event, state.adopter_state)
+
     %{state | adopter_state: adopter_state}
   end
 
@@ -271,23 +335,38 @@ defmodule GenRtmpServer.Protocol do
   end
 
   defp handle_event(event = %RtmpEvents.AudioVideoDataReceived{}, state) do
-    {:ok, adopter_state} = state.gen_rtmp_server_adopter.audio_video_data_received(event, state.adopter_state)
+    {:ok, adopter_state} =
+      state.gen_rtmp_server_adopter.audio_video_data_received(event, state.adopter_state)
+
     %{state | adopter_state: adopter_state}
   end
 
   defp handle_event(event = %RtmpEvents.StreamMetaDataChanged{}, state) do
-    {:ok, adopter_state} = state.gen_rtmp_server_adopter.metadata_received(event, state.adopter_state)
+    {:ok, adopter_state} =
+      state.gen_rtmp_server_adopter.metadata_received(event, state.adopter_state)
+
     %{state | adopter_state: adopter_state}
   end
 
   defp handle_event(event = %RtmpEvents.PlayStreamRequested{}, state) do
     case state.gen_rtmp_server_adopter.play_requested(event, state.adopter_state) do
       {:accepted, adopter_state} ->
-        _ = Logger.info("#{state.session_id}: Play stream request accepted (app: '#{event.app_name}', key: '#{event.stream_key}')")
+        _ =
+          Logger.info(
+            "#{state.session_id}: Play stream request accepted (app: '#{event.app_name}', key: '#{
+              event.stream_key
+            }')"
+          )
+
         handle_accepted_request(state, event.request_id, adopter_state)
 
       {{:rejected, command, reason}, adopter_state} ->
-        _ = Logger.info("#{state.session_id}: Play stream request rejected (app: '#{event.app_name}', key: '#{event.stream_key}') - #{reason}")
+        _ =
+          Logger.info(
+            "#{state.session_id}: Play stream request rejected (app: '#{event.app_name}', key: '#{
+              event.stream_key
+            }') - #{reason}"
+          )
 
         handle_rejected_request(command, state, event.request_id, adopter_state)
     end
@@ -299,27 +378,39 @@ defmodule GenRtmpServer.Protocol do
   end
 
   defp handle_event(event = %RtmpEvents.NewByteIOTotals{}, state) do
-    {:ok, adopter_state} = state.gen_rtmp_server_adopter.byte_io_totals_updated(event, state.adopter_state)
+    {:ok, adopter_state} =
+      state.gen_rtmp_server_adopter.byte_io_totals_updated(event, state.adopter_state)
+
     %{state | adopter_state: adopter_state}
   end
 
   defp handle_event(event = %RtmpEvents.AcknowledgementReceived{}, state) do
-    {:ok, adopter_state} = state.gen_rtmp_server_adopter.acknowledgement_received(event, state.adopter_state)
+    {:ok, adopter_state} =
+      state.gen_rtmp_server_adopter.acknowledgement_received(event, state.adopter_state)
+
     %{state | adopter_state: adopter_state}
   end
 
   defp handle_event(event = %RtmpEvents.PingRequestSent{}, state) do
-    {:ok, adopter_state} = state.gen_rtmp_server_adopter.ping_request_sent(event, state.adopter_state)
+    {:ok, adopter_state} =
+      state.gen_rtmp_server_adopter.ping_request_sent(event, state.adopter_state)
+
     %{state | adopter_state: adopter_state}
   end
 
   defp handle_event(event = %RtmpEvents.PingResponseReceived{}, state) do
-    {:ok, adopter_state} = state.gen_rtmp_server_adopter.ping_response_received(event, state.adopter_state)
+    {:ok, adopter_state} =
+      state.gen_rtmp_server_adopter.ping_response_received(event, state.adopter_state)
+
     %{state | adopter_state: adopter_state}
   end
 
   defp handle_event(event, state) do
-    _ = Logger.warn("#{state.session_id}: No code to handle RTMP session event of type #{inspect(event)}")
+    _ =
+      Logger.warn(
+        "#{state.session_id}: No code to handle RTMP session event of type #{inspect(event)}"
+      )
+
     state
   end
 
@@ -339,7 +430,14 @@ defmodule GenRtmpServer.Protocol do
 
   defp rtmp_send(data, send_to_stream_id, state, forced_timestamp) do
     content = form_outbound_rtmp_message(data)
-    :ok = Rtmp.ServerSession.Handler.send_rtmp_message(state.session_handler_pid, content, send_to_stream_id, forced_timestamp)
+
+    :ok =
+      Rtmp.ServerSession.Handler.send_rtmp_message(
+        state.session_handler_pid,
+        content,
+        send_to_stream_id,
+        forced_timestamp
+      )
   end
 
   defp form_outbound_rtmp_message(av_data = %GenRtmpServer.AudioVideoData{}) do
@@ -350,31 +448,37 @@ defmodule GenRtmpServer.Protocol do
   end
 
   defp form_outbound_rtmp_message(%GenRtmpServer.MetaData{details: metadata}) do
-    %RtmpMessages.Amf0Data{parameters: [
-      "onMetaData",
-      %{
-        "width" => metadata.video_width,
-        "height" => metadata.video_height,
-        "framerate" => metadata.video_frame_rate,
-        "videocodecid" => metadata.video_codec,
-        "audiocodecid" => metadata.audio_codec,
-        "audiochannels" => metadata.audio_channels,
-        "audiodatarate" => metadata.audio_bitrate_kbps,
-        "audiosamplerate" => metadata.audio_sample_rate,
-        "videodatarate" => metadata.video_bitrate_kbps
-      }
-    ]}
+    %RtmpMessages.Amf0Data{
+      parameters: [
+        "onMetaData",
+        %{
+          "width" => metadata.video_width,
+          "height" => metadata.video_height,
+          "framerate" => metadata.video_frame_rate,
+          "videocodecid" => metadata.video_codec,
+          "audiocodecid" => metadata.audio_codec,
+          "audiochannels" => metadata.audio_channels,
+          "audiodatarate" => metadata.audio_bitrate_kbps,
+          "audiosamplerate" => metadata.audio_sample_rate,
+          "videodatarate" => metadata.video_bitrate_kbps
+        }
+      ]
+    }
   end
 
   defp form_outbound_rtmp_message(data) do
     raise("No known way to form outbound rtmp message for data: #{inspect(data)}")
   end
 
-  defp prepare_log_files(state = %State{session_config: %Rtmp.ServerSession.Configuration{io_log_mode: :none}}) do
+  defp prepare_log_files(
+         state = %State{session_config: %Rtmp.ServerSession.Configuration{io_log_mode: :none}}
+       ) do
     state
   end
 
-  defp prepare_log_files(state = %State{session_config: %Rtmp.ServerSession.Configuration{io_log_mode: :raw_io}}) do
+  defp prepare_log_files(
+         state = %State{session_config: %Rtmp.ServerSession.Configuration{io_log_mode: :raw_io}}
+       ) do
     path = "dumps"
 
     :ok = File.mkdir_p!(path)
@@ -386,7 +490,11 @@ defmodule GenRtmpServer.Protocol do
     %{state | log_files: log_files}
   end
 
-  defp log_io_data(%State{session_config: %Rtmp.ServerSession.Configuration{io_log_mode: :none}}, _input_or_output, _data) do
+  defp log_io_data(
+         %State{session_config: %Rtmp.ServerSession.Configuration{io_log_mode: :none}},
+         _input_or_output,
+         _data
+       ) do
     :ok
   end
 
@@ -394,12 +502,20 @@ defmodule GenRtmpServer.Protocol do
     :ok
   end
 
-  defp log_io_data(state = %State{session_config: %Rtmp.ServerSession.Configuration{io_log_mode: :raw_io}}, :input, data) do
+  defp log_io_data(
+         state = %State{session_config: %Rtmp.ServerSession.Configuration{io_log_mode: :raw_io}},
+         :input,
+         data
+       ) do
     file = Map.fetch!(state.log_files, :input_append)
     IO.binwrite(file, data)
   end
 
-  defp log_io_data(state = %State{session_config: %Rtmp.ServerSession.Configuration{io_log_mode: :raw_io}}, :output, data) do
+  defp log_io_data(
+         state = %State{session_config: %Rtmp.ServerSession.Configuration{io_log_mode: :raw_io}},
+         :output,
+         data
+       ) do
     file = Map.fetch!(state.log_files, :output_append)
     IO.binwrite(file, data)
   end
@@ -411,7 +527,8 @@ defmodule GenRtmpServer.Protocol do
 
   defp send_droppable_packet(state, binary) do
     case :erlang.port_command(state.socket, binary, [:nosuspend]) do
-      true -> mark_packet_as_sent(state, binary)
+      true ->
+        mark_packet_as_sent(state, binary)
 
       false ->
         # Port is too busy to send, drop the packet
@@ -420,17 +537,18 @@ defmodule GenRtmpServer.Protocol do
   end
 
   defp mark_packet_as_sent(state, binary) do
-    %{state |
-      total_bytes_sent: state.total_bytes_sent + byte_size(binary),
-      total_packets_sent: state.total_packets_sent + 1
+    %{
+      state
+      | total_bytes_sent: state.total_bytes_sent + byte_size(binary),
+        total_packets_sent: state.total_packets_sent + 1
     }
   end
 
   defp mark_packet_as_dropped(state, binary) do
-    %{state |
-      total_bytes_dropped: state.total_bytes_dropped + byte_size(binary),
-      total_packets_dropped: state.total_packets_dropped + 1
+    %{
+      state
+      | total_bytes_dropped: state.total_bytes_dropped + byte_size(binary),
+        total_packets_dropped: state.total_packets_dropped + 1
     }
   end
-
 end

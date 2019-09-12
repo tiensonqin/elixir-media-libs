@@ -24,41 +24,52 @@ defmodule Rtmp.Protocol.HandlerTest do
   end
 
   test "Valid chunk 0 RTMP binary input deserialized and sent via session function" do
-    input = <<0::2, 50::6, 72::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little, 152::size(12)-unit(8)>>
+    input =
+      <<0::2, 50::6, 72::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little,
+        152::size(12)-unit(8)>>
 
     assert {:ok, handler} = ProtocolHandler.start_link("id", self(), __MODULE__)
     assert :ok = ProtocolHandler.set_session(handler, self(), __MODULE__)
     assert :ok = ProtocolHandler.notify_input(handler, input)
 
-    assert_receive {:message, %DetailedMessage{
-      timestamp: 72,
-      stream_id: 55,
-      content: %VideoData{
-        data: <<152::12 * 8>>
-      }
-    }}
+    assert_receive {:message,
+                    %DetailedMessage{
+                      timestamp: 72,
+                      stream_id: 55,
+                      content: %VideoData{
+                        data: <<152::12*8>>
+                      }
+                    }}
   end
 
   test "Can deserialize compressed (type 2) binary imput" do
-    input1 = <<0::2, 50::6, 72::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little, 152::size(12)-unit(8)>>
-    input2 = <<1::2, 50::6, 10::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 122::size(12)-unit(8)>>
+    input1 =
+      <<0::2, 50::6, 72::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little,
+        152::size(12)-unit(8)>>
+
+    input2 =
+      <<1::2, 50::6, 10::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 122::size(12)-unit(8)>>
 
     assert {:ok, handler} = ProtocolHandler.start_link("id", self(), __MODULE__)
     assert :ok = ProtocolHandler.set_session(handler, self(), __MODULE__)
     assert :ok = ProtocolHandler.notify_input(handler, input1)
     assert :ok = ProtocolHandler.notify_input(handler, input2)
 
-    assert_receive {:message, %DetailedMessage{
-      timestamp: 82,
-      stream_id: 55,
-      content: %VideoData{
-        data: <<122::12 * 8>>
-      }
-    }}
+    assert_receive {:message,
+                    %DetailedMessage{
+                      timestamp: 82,
+                      stream_id: 55,
+                      content: %VideoData{
+                        data: <<122::12*8>>
+                      }
+                    }}
   end
 
   test "Split chunks are read and passed on properly" do
-    input1 = <<0::2, 50::6, 72::size(3)-unit(8), 138::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little, 0::size(128)-unit(8)>>
+    input1 =
+      <<0::2, 50::6, 72::size(3)-unit(8), 138::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little,
+        0::size(128)-unit(8)>>
+
     input2 = <<3::2, 50::6, 122::size(10)-unit(8)>>
 
     assert {:ok, handler} = ProtocolHandler.start_link("id", self(), __MODULE__)
@@ -66,45 +77,51 @@ defmodule Rtmp.Protocol.HandlerTest do
     assert :ok = ProtocolHandler.notify_input(handler, input1)
     assert :ok = ProtocolHandler.notify_input(handler, input2)
 
-    assert_receive {:message, %DetailedMessage{
-      timestamp: 72,
-      stream_id: 55,
-      content: %VideoData{
-        data: <<122::138 * 8>>
-      }
-    }}
+    assert_receive {:message,
+                    %DetailedMessage{
+                      timestamp: 72,
+                      stream_id: 55,
+                      content: %VideoData{
+                        data: <<122::138*8>>
+                      }
+                    }}
   end
 
   test "Automatically adjusts to SetChunkSize messages" do
-    input1 = <<0::2, 50::6, 72::size(3)-unit(8), 4::size(3)-unit(8), 1::8, 55::size(4)-unit(8)-little, 200::size(4)-unit(8)>>
-    input2 = <<1::2, 50::6, 10::size(3)-unit(8), 200::size(3)-unit(8), 9::8, 122::size(200)-unit(8)>>
+    input1 =
+      <<0::2, 50::6, 72::size(3)-unit(8), 4::size(3)-unit(8), 1::8, 55::size(4)-unit(8)-little,
+        200::size(4)-unit(8)>>
+
+    input2 =
+      <<1::2, 50::6, 10::size(3)-unit(8), 200::size(3)-unit(8), 9::8, 122::size(200)-unit(8)>>
 
     assert {:ok, handler} = ProtocolHandler.start_link("id", self(), __MODULE__)
     assert :ok = ProtocolHandler.set_session(handler, self(), __MODULE__)
     assert :ok = ProtocolHandler.notify_input(handler, input1)
     assert :ok = ProtocolHandler.notify_input(handler, input2)
 
-    assert_receive {:message, %DetailedMessage{
-      timestamp: 82,
-      stream_id: 55,
-      content: %VideoData{
-        data: <<122::200 * 8>>
-      }
-    }}
+    assert_receive {:message,
+                    %DetailedMessage{
+                      timestamp: 82,
+                      stream_id: 55,
+                      content: %VideoData{
+                        data: <<122::200*8>>
+                      }
+                    }}
   end
 
   test "Passed in messages are serialized (with compression) and sent to socket function" do
     input1 = %DetailedMessage{
       timestamp: 72,
       stream_id: 55,
-      content: %VideoData{data: <<152::12 * 8>>}
+      content: %VideoData{data: <<152::12*8>>}
     }
 
     input2 = %DetailedMessage{
       timestamp: 82,
       stream_id: 55,
       content: %VideoData{
-        data: <<122::13 * 8>>
+        data: <<122::13*8>>
       }
     }
 
@@ -113,8 +130,12 @@ defmodule Rtmp.Protocol.HandlerTest do
     assert :ok = ProtocolHandler.send_message(handler, input1)
     assert :ok = ProtocolHandler.send_message(handler, input2)
 
-    expected_binary1 = <<0::2, 21::6, 72::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little, 152::size(12)-unit(8)>>
-    expected_binary2 = <<1::2, 21::6, 10::size(3)-unit(8), 13::size(3)-unit(8), 9::8, 122::size(13)-unit(8)>>
+    expected_binary1 =
+      <<0::2, 21::6, 72::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little,
+        152::size(12)-unit(8)>>
+
+    expected_binary2 =
+      <<1::2, 21::6, 10::size(3)-unit(8), 13::size(3)-unit(8), 9::8, 122::size(13)-unit(8)>>
 
     assert_receive {:binary, ^expected_binary1, _}
     assert_receive {:binary, ^expected_binary2, _}
@@ -124,14 +145,17 @@ defmodule Rtmp.Protocol.HandlerTest do
     input1 = %DetailedMessage{
       timestamp: 72,
       stream_id: 55,
-      content: %VideoData{data: <<122::138 * 8>>}
+      content: %VideoData{data: <<122::138*8>>}
     }
 
     assert {:ok, handler} = ProtocolHandler.start_link("id", self(), __MODULE__)
     assert :ok = ProtocolHandler.set_session(handler, self(), __MODULE__)
     assert :ok = ProtocolHandler.send_message(handler, input1)
 
-    expected_binary1 = <<0::2, 21::6, 72::size(3)-unit(8), 138::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little, 0::size(128)-unit(8)>>
+    expected_binary1 =
+      <<0::2, 21::6, 72::size(3)-unit(8), 138::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little,
+        0::size(128)-unit(8)>>
+
     expected_binary2 = <<3::2, 21::6, 122::size(10)-unit(8)>>
     expected_binary = expected_binary1 <> expected_binary2
 
@@ -149,7 +173,7 @@ defmodule Rtmp.Protocol.HandlerTest do
       timestamp: 82,
       stream_id: 55,
       content: %VideoData{
-        data: <<122::200 * 8>>
+        data: <<122::200*8>>
       }
     }
 
@@ -158,41 +182,56 @@ defmodule Rtmp.Protocol.HandlerTest do
     assert :ok = ProtocolHandler.send_message(handler, input1)
     assert :ok = ProtocolHandler.send_message(handler, input2)
 
-    expected_binary1 = <<0::2, 2::6, 72::size(3)-unit(8), 4::size(3)-unit(8), 1::8, 55::size(4)-unit(8)-little, 200::size(4)-unit(8)>>
-    expected_binary2 = <<0::2, 21::6, 82::size(3)-unit(8), 200::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little, 122::size(200)-unit(8)>>
+    expected_binary1 =
+      <<0::2, 2::6, 72::size(3)-unit(8), 4::size(3)-unit(8), 1::8, 55::size(4)-unit(8)-little,
+        200::size(4)-unit(8)>>
+
+    expected_binary2 =
+      <<0::2, 21::6, 82::size(3)-unit(8), 200::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little,
+        122::size(200)-unit(8)>>
 
     assert_receive {:binary, ^expected_binary1, _}
     assert_receive {:binary, ^expected_binary2, _}
   end
 
   test "Can read multiple chunks in a single packet" do
-    input1 = <<0::2, 50::6, 72::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little, 152::size(12)-unit(8)>>
-    input2 = <<1::2, 50::6, 10::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 122::size(12)-unit(8)>>
+    input1 =
+      <<0::2, 50::6, 72::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little,
+        152::size(12)-unit(8)>>
+
+    input2 =
+      <<1::2, 50::6, 10::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 122::size(12)-unit(8)>>
 
     assert {:ok, handler} = ProtocolHandler.start_link("id", self(), __MODULE__)
     assert :ok = ProtocolHandler.set_session(handler, self(), __MODULE__)
     assert :ok = ProtocolHandler.notify_input(handler, input1 <> input2)
 
-    assert_receive {:message, %DetailedMessage{
-      timestamp: 72,
-      stream_id: 55,
-      content: %VideoData{
-        data: <<152::12 * 8>>
-      }
-    }}
+    assert_receive {:message,
+                    %DetailedMessage{
+                      timestamp: 72,
+                      stream_id: 55,
+                      content: %VideoData{
+                        data: <<152::12*8>>
+                      }
+                    }}
 
-    assert_receive {:message, %DetailedMessage{
-      timestamp: 82,
-      stream_id: 55,
-      content: %VideoData{
-        data: <<122::12 * 8>>
-      }
-    }}
+    assert_receive {:message,
+                    %DetailedMessage{
+                      timestamp: 82,
+                      stream_id: 55,
+                      content: %VideoData{
+                        data: <<122::12*8>>
+                      }
+                    }}
   end
 
   test "Announces total bytes received after processing input" do
-    input1 = <<0::2, 50::6, 72::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little, 152::size(12)-unit(8)>>
-    input2 = <<1::2, 50::6, 10::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 122::size(12)-unit(8)>>
+    input1 =
+      <<0::2, 50::6, 72::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little,
+        152::size(12)-unit(8)>>
+
+    input2 =
+      <<1::2, 50::6, 10::size(3)-unit(8), 12::size(3)-unit(8), 9::8, 122::size(12)-unit(8)>>
 
     assert {:ok, handler} = ProtocolHandler.start_link("id", self(), __MODULE__)
     assert :ok = ProtocolHandler.set_session(handler, self(), __MODULE__)
@@ -214,7 +253,7 @@ defmodule Rtmp.Protocol.HandlerTest do
       timestamp: 82,
       stream_id: 55,
       content: %VideoData{
-        data: <<122::200 * 8>>
+        data: <<122::200*8>>
       }
     }
 
@@ -223,8 +262,14 @@ defmodule Rtmp.Protocol.HandlerTest do
     assert :ok = ProtocolHandler.send_message(handler, input1)
     assert :ok = ProtocolHandler.send_message(handler, input2)
 
-    expected_binary1 = <<0::2, 2::6, 72::size(3)-unit(8), 4::size(3)-unit(8), 1::8, 55::size(4)-unit(8)-little, 200::size(4)-unit(8)>>
-    expected_binary2 = <<0::2, 21::6, 82::size(3)-unit(8), 200::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little, 122::size(200)-unit(8)>>
+    expected_binary1 =
+      <<0::2, 2::6, 72::size(3)-unit(8), 4::size(3)-unit(8), 1::8, 55::size(4)-unit(8)-little,
+        200::size(4)-unit(8)>>
+
+    expected_binary2 =
+      <<0::2, 21::6, 82::size(3)-unit(8), 200::size(3)-unit(8), 9::8, 55::size(4)-unit(8)-little,
+        122::size(200)-unit(8)>>
+
     expected_sent_size = byte_size(expected_binary1 <> expected_binary2)
 
     assert_receive {:bytes_sent, ^expected_sent_size}, 1000

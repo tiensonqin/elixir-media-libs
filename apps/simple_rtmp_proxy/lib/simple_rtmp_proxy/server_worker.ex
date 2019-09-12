@@ -38,7 +38,7 @@ defmodule SimpleRtmpProxy.ServerWorker do
   end
 
   def init(session_id, client_ip, [host, port, app_name]) do
-    _ = Logger.info "#{session_id}: simple rtmp proxy session started"
+    _ = Logger.info("#{session_id}: simple rtmp proxy session started")
 
     state = %State{
       session_id: session_id,
@@ -64,7 +64,8 @@ defmodule SimpleRtmpProxy.ServerWorker do
         {:accepted, state}
 
       _ ->
-        {{:rejected, :ignore, "Publish already in progress on stream key #{state.stream_key}"}, state}
+        {{:rejected, :ignore, "Publish already in progress on stream key #{state.stream_key}"},
+         state}
     end
   end
 
@@ -82,43 +83,59 @@ defmodule SimpleRtmpProxy.ServerWorker do
 
   def metadata_received(event = %RtmpEvents.StreamMetaDataChanged{}, state = %State{}) do
     if event.stream_key != state.stream_key do
-      message = "#{state.session_id}: Received stream metadata on stream key #{event.stream_key} but " <>
-                "currently publishing on stream key #{state.stream_key}"
+      message =
+        "#{state.session_id}: Received stream metadata on stream key #{event.stream_key} but " <>
+          "currently publishing on stream key #{state.stream_key}"
+
       raise(message)
     end
 
-    state = %{state | metadata: event.meta_data }
+    state = %{state | metadata: event.meta_data}
     {:ok, state}
   end
 
   def audio_video_data_received(event = %RtmpEvents.AudioVideoDataReceived{}, state = %State{}) do
     if event.stream_key != state.stream_key do
-      message = "#{state.session_id}: Received a/v data on stream key #{event.stream_key} but " <>
-                "currently publishing on stream key #{state.stream_key}"
+      message =
+        "#{state.session_id}: Received a/v data on stream key #{event.stream_key} but " <>
+          "currently publishing on stream key #{state.stream_key}"
+
       raise(message)
     end
 
-    state = case event.data_type do
-      :audio ->
-        case is_audio_sequence_header(event.data) do
-          false -> state
-          true -> 
-            _ = Logger.debug("#{state.session_id}: Audio sequence header received")
-            %{state | audio_sequence_header: event.data}
-        end
+    state =
+      case event.data_type do
+        :audio ->
+          case is_audio_sequence_header(event.data) do
+            false ->
+              state
 
-      :video ->
-        case is_video_sequence_header(event.data) do
-          false -> state
-          true -> 
-            _ = Logger.debug("#{state.session_id}: Video sequence header received")
-            %{state | video_sequence_header: event.data }
-        end
-    end
+            true ->
+              _ = Logger.debug("#{state.session_id}: Audio sequence header received")
+              %{state | audio_sequence_header: event.data}
+          end
+
+        :video ->
+          case is_video_sequence_header(event.data) do
+            false ->
+              state
+
+            true ->
+              _ = Logger.debug("#{state.session_id}: Video sequence header received")
+              %{state | video_sequence_header: event.data}
+          end
+      end
 
     state = start_client_if_ready(state)
+
     if state.client_pid != nil do
-      :ok = SimpleRtmpProxy.Client.relay_av_data(state.client_pid, event.data_type, event.timestamp, event.data)
+      :ok =
+        SimpleRtmpProxy.Client.relay_av_data(
+          state.client_pid,
+          event.data_type,
+          event.timestamp,
+          event.data
+        )
     end
 
     {:ok, state}
@@ -160,10 +177,15 @@ defmodule SimpleRtmpProxy.ServerWorker do
 
   defp start_client_if_ready(state) do
     cond do
-      state.client_pid != nil -> state
-      state.video_sequence_header == nil -> state
-      state.audio_sequence_header == nil -> state
-      state.metadata == nil -> state
+      state.client_pid != nil ->
+        state
+
+      state.video_sequence_header == nil ->
+        state
+
+      # state.audio_sequence_header == nil -> state
+      state.metadata == nil ->
+        state
 
       true ->
         connection_info = %GenRtmpClient.ConnectionInfo{
@@ -180,8 +202,9 @@ defmodule SimpleRtmpProxy.ServerWorker do
           state.metadata
         ]
 
-        {:ok, client_pid} = GenRtmpClient.start_link(SimpleRtmpProxy.Client, connection_info, client_args)
-        
+        {:ok, client_pid} =
+          GenRtmpClient.start_link(SimpleRtmpProxy.Client, connection_info, client_args)
+
         %{state | client_pid: client_pid}
     end
   end
@@ -189,7 +212,6 @@ defmodule SimpleRtmpProxy.ServerWorker do
   defp is_video_sequence_header(<<0x17, 0x00, _::binary>>), do: true
   defp is_video_sequence_header(_), do: false
 
-  defp is_audio_sequence_header(<<0xaf, 0x00, _::binary>>), do: true
+  defp is_audio_sequence_header(<<0xAF, 0x00, _::binary>>), do: true
   defp is_audio_sequence_header(_), do: false
-
 end

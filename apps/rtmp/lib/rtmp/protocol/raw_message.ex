@@ -7,13 +7,13 @@ defmodule Rtmp.Protocol.RawMessage do
   alias Rtmp.Protocol.DetailedMessage, as: DetailedMessage
 
   @type t :: %__MODULE__{
-    timestamp: non_neg_integer(),
-    message_type_id: non_neg_integer(),
-    stream_id: non_neg_integer(),
-    force_uncompressed: boolean(),
-    deserialization_system_time: pos_integer() | nil,
-    payload: binary()
-  }
+          timestamp: non_neg_integer(),
+          message_type_id: non_neg_integer(),
+          stream_id: non_neg_integer(),
+          force_uncompressed: boolean(),
+          deserialization_system_time: pos_integer() | nil,
+          payload: binary()
+        }
 
   defstruct timestamp: nil,
             message_type_id: nil,
@@ -27,22 +27,25 @@ defmodule Rtmp.Protocol.RawMessage do
   @callback get_default_chunk_stream_id(struct()) :: pos_integer()
 
   @doc "Unpacks the specified RTMP message into it's proper structure"
-  @spec unpack(__MODULE__.t) :: {:error, :unknown_message_type} | {:ok, DetailedMessage.t}
+  @spec unpack(__MODULE__.t()) :: {:error, :unknown_message_type} | {:ok, DetailedMessage.t()}
   def unpack(message = %__MODULE__{}) do
     case get_message_module(message.message_type_id) do
-      nil -> {:error, :unknown_message_type}
-      module -> 
-        {:ok, %DetailedMessage{
-          timestamp: message.timestamp,
-          stream_id: message.stream_id,
-          content: module.deserialize(message.payload),
-          deserialization_system_time: message.deserialization_system_time
-        }}
+      nil ->
+        {:error, :unknown_message_type}
+
+      module ->
+        {:ok,
+         %DetailedMessage{
+           timestamp: message.timestamp,
+           stream_id: message.stream_id,
+           content: module.deserialize(message.payload),
+           deserialization_system_time: message.deserialization_system_time
+         }}
     end
   end
 
   @doc "Packs a detailed RTMP message into a serializable raw message"
-  @spec pack(DetailedMessage.t) :: __MODULE__.t
+  @spec pack(DetailedMessage.t()) :: __MODULE__.t()
   def pack(message = %DetailedMessage{}) do
     {:ok, payload} = message.content.__struct__.serialize(message.content)
 
@@ -54,7 +57,7 @@ defmodule Rtmp.Protocol.RawMessage do
       force_uncompressed: message.force_uncompressed
     }
   end
-  
+
   defp get_message_module(1), do: Rtmp.Protocol.Messages.SetChunkSize
   defp get_message_module(2), do: Rtmp.Protocol.Messages.Abort
   defp get_message_module(3), do: Rtmp.Protocol.Messages.Acknowledgement
@@ -86,5 +89,4 @@ defmodule Rtmp.Protocol.RawMessage do
   defp get_message_type(Rtmp.Protocol.Messages.VideoData), do: 9
   defp get_message_type(Rtmp.Protocol.Messages.Amf0Data), do: 18
   defp get_message_type(Rtmp.Protocol.Messages.Amf0Command), do: 20
-
 end

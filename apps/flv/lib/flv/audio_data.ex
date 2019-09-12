@@ -1,9 +1,21 @@
 defmodule Flv.AudioData do
   @moduledoc "Represents a packet of audio data."
 
-  @type sound_format :: :pcm_platform_endian | :adpcm | :mp3 | :pcm_little_endian |
-                        :nelly_16khz | :nelly_8khz | :nelly | :g711_alaw | :g711_mulaw |
-                        :reserved | :aac | :speex | :mp3_8khz | :device_specific
+  @type sound_format ::
+          :pcm_platform_endian
+          | :adpcm
+          | :mp3
+          | :pcm_little_endian
+          | :nelly_16khz
+          | :nelly_8khz
+          | :nelly
+          | :g711_alaw
+          | :g711_mulaw
+          | :reserved
+          | :aac
+          | :speex
+          | :mp3_8khz
+          | :device_specific
 
   @type sample_rate :: 5 | 11 | 22 | 44
   @type sample_size :: 8 | 16
@@ -11,13 +23,13 @@ defmodule Flv.AudioData do
   @type aac_packet_type :: :sequence_header | :raw_data | :not_aac
 
   @type t :: %__MODULE__{
-    format: sound_format,
-    sample_rate_in_khz: sample_rate,
-    sample_size_in_bits: sample_size,
-    channel_type: channel_type,
-    aac_packet_type: aac_packet_type,
-    data: binary
-  }
+          format: sound_format,
+          sample_rate_in_khz: sample_rate,
+          sample_size_in_bits: sample_size,
+          channel_type: channel_type,
+          aac_packet_type: aac_packet_type,
+          data: binary
+        }
 
   defstruct format: nil,
             sample_rate_in_khz: nil,
@@ -26,7 +38,7 @@ defmodule Flv.AudioData do
             aac_packet_type: :not_aac,
             data: <<>>
 
-  @spec parse(binary) :: {:ok, __MODULE__.t} | :error
+  @spec parse(binary) :: {:ok, __MODULE__.t()} | :error
   @doc "Parses the provided binary into an flv video tag"
   def parse(binary) when is_binary(binary) do
     do_parse(binary)
@@ -44,7 +56,7 @@ defmodule Flv.AudioData do
           format: format,
           sample_rate_in_khz: rate,
           sample_size_in_bits: size,
-          channel_type: type,
+          channel_type: type
         }
 
         {:ok, apply_data(rest, audio)}
@@ -52,7 +64,6 @@ defmodule Flv.AudioData do
       false ->
         :error
     end
-
   end
 
   defp do_parse(_) do
@@ -75,7 +86,8 @@ defmodule Flv.AudioData do
   defp get_format(15), do: :device_specific
   defp get_format(_), do: :error
 
-  defp get_rate(0), do: 5 # should be 5.5, but for some reason the typesepec is not allowing decimals
+  # should be 5.5, but for some reason the typesepec is not allowing decimals
+  defp get_rate(0), do: 5
   defp get_rate(1), do: 11
   defp get_rate(2), do: 22
   defp get_rate(3), do: 44
@@ -87,17 +99,11 @@ defmodule Flv.AudioData do
   defp get_channel_type(1), do: :stereo
 
   defp apply_data(<<0x00, rest::binary>>, audio_data = %__MODULE__{format: :aac}) do
-    %{audio_data |
-      aac_packet_type: :sequence_header,
-      data: rest
-    }
+    %{audio_data | aac_packet_type: :sequence_header, data: rest}
   end
 
   defp apply_data(<<0x01, rest::binary>>, audio_data = %__MODULE__{format: :aac}) do
-    %{audio_data |
-      aac_packet_type: :raw_data,
-      data: rest
-    }
+    %{audio_data | aac_packet_type: :raw_data, data: rest}
   end
 
   defp apply_data(binary, audio_data) do

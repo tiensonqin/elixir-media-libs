@@ -27,6 +27,7 @@ defmodule Rtmp.ClientSession.HandlerTest do
 
   setup do
     connection_id = "test_connection"
+
     options = %Configuration{
       flash_version: "test version",
       window_ack_size: 7777,
@@ -45,7 +46,8 @@ defmodule Rtmp.ClientSession.HandlerTest do
     options = context[:options]
     expected_win_size = options.window_ack_size
 
-    :timer.sleep(20) # To verify non_zero timestamps in responses
+    # To verify non_zero timestamps in responses
+    :timer.sleep(20)
 
     assert :ok == Handler.request_connection(session, "my_app")
     expect_connection_request_rtmp_message("my_app", options.flash_version)
@@ -54,11 +56,13 @@ defmodule Rtmp.ClientSession.HandlerTest do
     expect_connection_response_received_event(true, "success123")
 
     # connection success should trigger ack size command
-    assert_receive {:message, %DetailedMessage{
-      stream_id: 0,
-      timestamp: timestamp,
-      content: %Messages.WindowAcknowledgementSize{size: ^expected_win_size}
-    }} when timestamp > 0
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: 0,
+                      timestamp: timestamp,
+                      content: %Messages.WindowAcknowledgementSize{size: ^expected_win_size}
+                    }}
+                   when timestamp > 0
   end
 
   test "Accepted playback request workflow", context do
@@ -73,7 +77,7 @@ defmodule Rtmp.ClientSession.HandlerTest do
     assert :ok == Handler.request_playback(session, stream_key)
 
     transaction_id = expect_create_stream_rtmp_message()
-    simulate_create_stream_response(session, transaction_id, created_stream_id)    
+    simulate_create_stream_response(session, transaction_id, created_stream_id)
     expect_buffer_length_rtmp_message(created_stream_id, options.playback_buffer_length_ms)
     play_transaction_id = expect_play_rtmp_message(created_stream_id, stream_key)
 
@@ -87,39 +91,43 @@ defmodule Rtmp.ClientSession.HandlerTest do
       session: session,
       stream_key: stream_key,
       active_stream_id: stream_id
-    } = get_playback_session(context);
+    } = get_playback_session(context)
 
     simulated_metadata = %DetailedMessage{
       stream_id: stream_id,
-      content: %Messages.Amf0Data{parameters: [
-        'onMetaData',
-        %{
-          "height" => 720,
-          "width" => 1280,
-          "audiochannels" => 2,
-          "audiocodecid" => "mp4a",
-          "audiodatarate" => 96,
-          "framerate" => 30,
-          "videocodecid" => "avc1",
-          "videodatarate" => 1000
-        }
-      ]}
+      content: %Messages.Amf0Data{
+        parameters: [
+          'onMetaData',
+          %{
+            "height" => 720,
+            "width" => 1280,
+            "audiochannels" => 2,
+            "audiocodecid" => "mp4a",
+            "audiodatarate" => 96,
+            "framerate" => 30,
+            "videocodecid" => "avc1",
+            "videodatarate" => 1000
+          }
+        ]
+      }
     }
 
     assert :ok == Handler.handle_rtmp_input(session, simulated_metadata)
-    assert_receive {:event, %Events.StreamMetaDataReceived{
-      stream_key: ^stream_key,
-      meta_data: %Rtmp.StreamMetadata{
-        video_height: 720,
-        video_width: 1280,
-        video_codec: "avc1",
-        video_frame_rate: 30,
-        video_bitrate_kbps: 1000,
-        audio_channels: 2,
-        audio_codec: "mp4a",
-        audio_bitrate_kbps: 96
-      }
-    }}
+
+    assert_receive {:event,
+                    %Events.StreamMetaDataReceived{
+                      stream_key: ^stream_key,
+                      meta_data: %Rtmp.StreamMetadata{
+                        video_height: 720,
+                        video_width: 1280,
+                        video_codec: "avc1",
+                        video_frame_rate: 30,
+                        video_bitrate_kbps: 1000,
+                        audio_channels: 2,
+                        audio_codec: "mp4a",
+                        audio_bitrate_kbps: 96
+                      }
+                    }}
   end
 
   test "Active playback raises events for audio data received", context do
@@ -127,7 +135,7 @@ defmodule Rtmp.ClientSession.HandlerTest do
       session: session,
       stream_key: stream_key,
       active_stream_id: stream_id
-    } = get_playback_session(context);
+    } = get_playback_session(context)
 
     simulated_audio_message = %DetailedMessage{
       timestamp: 512,
@@ -136,13 +144,16 @@ defmodule Rtmp.ClientSession.HandlerTest do
     }
 
     assert :ok == Handler.handle_rtmp_input(session, simulated_audio_message)
-    assert_receive {:event, %Events.AudioVideoDataReceived{
-      stream_key: ^stream_key,
-      data_type: :audio,
-      data: <<100::12>>,
-      timestamp: 512,
-      received_at_timestamp: received_at_timestamp,      
-    }} when received_at_timestamp > 0
+
+    assert_receive {:event,
+                    %Events.AudioVideoDataReceived{
+                      stream_key: ^stream_key,
+                      data_type: :audio,
+                      data: <<100::12>>,
+                      timestamp: 512,
+                      received_at_timestamp: received_at_timestamp
+                    }}
+                   when received_at_timestamp > 0
   end
 
   test "Active playback raises events for video data received", context do
@@ -150,7 +161,7 @@ defmodule Rtmp.ClientSession.HandlerTest do
       session: session,
       stream_key: stream_key,
       active_stream_id: stream_id
-    } = get_playback_session(context);
+    } = get_playback_session(context)
 
     simulated_video_message = %DetailedMessage{
       timestamp: 512,
@@ -159,13 +170,16 @@ defmodule Rtmp.ClientSession.HandlerTest do
     }
 
     assert :ok == Handler.handle_rtmp_input(session, simulated_video_message)
-    assert_receive {:event, %Events.AudioVideoDataReceived{
-      stream_key: ^stream_key,
-      data_type: :video,
-      data: <<100::12>>,
-      timestamp: 512,
-      received_at_timestamp: received_at_timestamp,      
-    }} when received_at_timestamp > 0
+
+    assert_receive {:event,
+                    %Events.AudioVideoDataReceived{
+                      stream_key: ^stream_key,
+                      data_type: :video,
+                      data: <<100::12>>,
+                      timestamp: 512,
+                      received_at_timestamp: received_at_timestamp
+                    }}
+                   when received_at_timestamp > 0
   end
 
   test "Can receive audio and video data prior to receiving play confirmation", context do
@@ -180,7 +194,7 @@ defmodule Rtmp.ClientSession.HandlerTest do
     assert :ok == Handler.request_playback(session, stream_key)
 
     transaction_id = expect_create_stream_rtmp_message()
-    simulate_create_stream_response(session, transaction_id, created_stream_id)    
+    simulate_create_stream_response(session, transaction_id, created_stream_id)
     expect_buffer_length_rtmp_message(created_stream_id, options.playback_buffer_length_ms)
     expect_play_rtmp_message(created_stream_id, stream_key)
 
@@ -199,21 +213,25 @@ defmodule Rtmp.ClientSession.HandlerTest do
     assert :ok == Handler.handle_rtmp_input(session, simulated_video_message)
     assert :ok == Handler.handle_rtmp_input(session, simulated_audio_message)
 
-    assert_receive {:event, %Events.AudioVideoDataReceived{
-      stream_key: ^stream_key,
-      data_type: :audio,
-      data: <<100::12>>,
-      timestamp: 512,
-      received_at_timestamp: received_at_timestamp,      
-    }} when received_at_timestamp > 0
+    assert_receive {:event,
+                    %Events.AudioVideoDataReceived{
+                      stream_key: ^stream_key,
+                      data_type: :audio,
+                      data: <<100::12>>,
+                      timestamp: 512,
+                      received_at_timestamp: received_at_timestamp
+                    }}
+                   when received_at_timestamp > 0
 
-    assert_receive {:event, %Events.AudioVideoDataReceived{
-      stream_key: ^stream_key,
-      data_type: :video,
-      data: <<100::12>>,
-      timestamp: 512,
-      received_at_timestamp: received_at_timestamp,      
-    }} when received_at_timestamp > 0
+    assert_receive {:event,
+                    %Events.AudioVideoDataReceived{
+                      stream_key: ^stream_key,
+                      data_type: :video,
+                      data: <<100::12>>,
+                      timestamp: 512,
+                      received_at_timestamp: received_at_timestamp
+                    }}
+                   when received_at_timestamp > 0
   end
 
   test "Can stop playback", context do
@@ -221,23 +239,26 @@ defmodule Rtmp.ClientSession.HandlerTest do
       session: session,
       stream_key: stream_key,
       active_stream_id: stream_id
-    } = get_playback_session(context);
+    } = get_playback_session(context)
 
     assert :ok == Handler.stop_playback(session, stream_key)
-    assert_receive {:message, %DetailedMessage{
-      stream_id: ^stream_id,
-      timestamp: timestamp,
-      content: %Messages.Amf0Command{
-        command_name: "deleteStream",
-        command_object: nil,
-        additional_values: [^stream_id]
-      }
-    }} when timestamp > 0
+
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: ^stream_id,
+                      timestamp: timestamp,
+                      content: %Messages.Amf0Command{
+                        command_name: "deleteStream",
+                        command_object: nil,
+                        additional_values: [^stream_id]
+                      }
+                    }}
+                   when timestamp > 0
   end
 
   test "Accepted publishing request workflow", context do
     %TestContext{
-      session: session,
+      session: session
     } = get_connected_session(context)
 
     stream_key = "abcdefg"
@@ -245,10 +266,10 @@ defmodule Rtmp.ClientSession.HandlerTest do
 
     assert :ok == Handler.request_publish(session, stream_key, :live)
     transaction_id = expect_create_stream_rtmp_message()
-    
+
     simulate_create_stream_response(session, transaction_id, created_stream_id)
     transaction_id = expect_publish_rtmp_message(created_stream_id, stream_key, "live")
-    
+
     simulate_publish_response(session, transaction_id, created_stream_id, true, "success")
     expect_publish_response_received_event(stream_key, true, "success")
   end
@@ -257,7 +278,7 @@ defmodule Rtmp.ClientSession.HandlerTest do
     %TestContext{
       session: session,
       stream_key: stream_key,
-      active_stream_id: stream_id,
+      active_stream_id: stream_id
     } = get_publishing_session(context)
 
     metadata = %Rtmp.StreamMetadata{
@@ -271,63 +292,70 @@ defmodule Rtmp.ClientSession.HandlerTest do
       audio_sample_rate: 104,
       audio_channels: 105,
       audio_is_stereo: true,
-      encoder: "encoder",
+      encoder: "encoder"
     }
 
     assert :ok == Handler.publish_metadata(session, stream_key, metadata)
-    assert_receive {:message, %DetailedMessage{
-      stream_id: ^stream_id,
-      timestamp: timestamp,
-      content: %Messages.Amf0Data{
-        parameters: [
-          "@setDataFrame",
-          "onMetaData",
-          %{
-            "width" => 100,
-            "height" => 101,
-            "videocodecid" => "vc",
-            "framerate" => 30,
-            "videodatarate" => 102,
-            "audiocodecid" => "ac",
-            "audiodatarate" => 103,
-            "audiosamplerate" => 104,
-            "audiochannels" => 105,
-            "stereo" => true,
-            "encoder" => "encoder"
-          }
-        ]
-      }
-    }} when timestamp > 0
+
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: ^stream_id,
+                      timestamp: timestamp,
+                      content: %Messages.Amf0Data{
+                        parameters: [
+                          "@setDataFrame",
+                          "onMetaData",
+                          %{
+                            "width" => 100,
+                            "height" => 101,
+                            "videocodecid" => "vc",
+                            "framerate" => 30,
+                            "videodatarate" => 102,
+                            "audiocodecid" => "ac",
+                            "audiodatarate" => 103,
+                            "audiosamplerate" => 104,
+                            "audiochannels" => 105,
+                            "stereo" => true,
+                            "encoder" => "encoder"
+                          }
+                        ]
+                      }
+                    }}
+                   when timestamp > 0
   end
 
   test "Active publisher can send audio data to server", context do
     %TestContext{
       session: session,
       stream_key: stream_key,
-      active_stream_id: stream_id,
+      active_stream_id: stream_id
     } = get_publishing_session(context)
 
     assert :ok == Handler.publish_av_data(session, stream_key, :audio, 512, <<123::23>>)
-    assert_receive {:message, %DetailedMessage{
-      stream_id: ^stream_id,
-      timestamp: 512,
-      content: %Messages.AudioData{data: <<123::23>>},
-    }}
+
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: ^stream_id,
+                      timestamp: 512,
+                      content: %Messages.AudioData{data: <<123::23>>}
+                    }}
   end
 
   test "Active publisher can send video data to server", context do
     %TestContext{
       session: session,
       stream_key: stream_key,
-      active_stream_id: stream_id,
+      active_stream_id: stream_id
     } = get_publishing_session(context)
 
     assert :ok == Handler.publish_av_data(session, stream_key, :video, 512, <<123::23>>)
-    assert_receive {:message, %DetailedMessage{
-      stream_id: ^stream_id,
-      timestamp: 512,
-      content: %Messages.VideoData{data: <<123::23>>},
-    }}
+
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: ^stream_id,
+                      timestamp: 512,
+                      content: %Messages.VideoData{data: <<123::23>>}
+                    }}
   end
 
   test "Can stop publishing", context do
@@ -335,28 +363,33 @@ defmodule Rtmp.ClientSession.HandlerTest do
       session: session,
       stream_key: stream_key,
       active_stream_id: stream_id
-    } = get_playback_session(context);
+    } = get_playback_session(context)
 
     assert :ok == Handler.stop_publish(session, stream_key)
-    assert_receive {:message, %DetailedMessage{
-      stream_id: ^stream_id,
-      timestamp: timestamp,
-      content: %Messages.Amf0Command{
-        command_name: "FCUnpublish",
-        command_object: nil,
-        additional_values: [^stream_key]
-      }
-    }} when timestamp > 0
 
-    assert_receive {:message, %DetailedMessage{
-      stream_id: ^stream_id,
-      timestamp: timestamp,
-      content: %Messages.Amf0Command{
-        command_name: "deleteStream",
-        command_object: nil,
-        additional_values: [^stream_id]
-      }
-    }} when timestamp > 0
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: ^stream_id,
+                      timestamp: timestamp,
+                      content: %Messages.Amf0Command{
+                        command_name: "FCUnpublish",
+                        command_object: nil,
+                        additional_values: [^stream_key]
+                      }
+                    }}
+                   when timestamp > 0
+
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: ^stream_id,
+                      timestamp: timestamp,
+                      content: %Messages.Amf0Command{
+                        command_name: "deleteStream",
+                        command_object: nil,
+                        additional_values: [^stream_id]
+                      }
+                    }}
+                   when timestamp > 0
   end
 
   test "Sends acknowledgement after receiving at least server specified byte count", context do
@@ -366,14 +399,17 @@ defmodule Rtmp.ClientSession.HandlerTest do
     }
 
     %TestContext{session: session} = get_connected_session(context)
-    
+
     assert :ok == Handler.handle_rtmp_input(session, window_ack_size)
     assert :ok == Handler.notify_byte_count(session, :bytes_received, 6000)
-    assert_receive {:message, %DetailedMessage{
-      stream_id: 0,
-      timestamp: timestamp,
-      content: %Messages.Acknowledgement{sequence_number: 6000}
-    }} when timestamp > 0
+
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: 0,
+                      timestamp: timestamp,
+                      content: %Messages.Acknowledgement{sequence_number: 6000}
+                    }}
+                   when timestamp > 0
   end
 
   test "No acknowlegement received if received less than server specified byte count", context do
@@ -386,10 +422,12 @@ defmodule Rtmp.ClientSession.HandlerTest do
 
     assert :ok == Handler.handle_rtmp_input(session, window_ack_size)
     assert :ok == Handler.notify_byte_count(session, :bytes_received, 4999)
-    refute_receive {:message, %DetailedMessage{
-      stream_id: 0,
-      content: %Messages.Acknowledgement{}
-    }}
+
+    refute_receive {:message,
+                    %DetailedMessage{
+                      stream_id: 0,
+                      content: %Messages.Acknowledgement{}
+                    }}
   end
 
   test "Only one acknowledgement received if 2nd byte count doens't pass window size", context do
@@ -402,17 +440,22 @@ defmodule Rtmp.ClientSession.HandlerTest do
 
     assert :ok == Handler.handle_rtmp_input(session, window_ack_size)
     assert :ok == Handler.notify_byte_count(session, :bytes_received, 6000)
-    assert_receive {:message, %DetailedMessage{
-      stream_id: 0,
-      timestamp: timestamp,
-      content: %Messages.Acknowledgement{sequence_number: 6000}
-    }} when timestamp > 0
+
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: 0,
+                      timestamp: timestamp,
+                      content: %Messages.Acknowledgement{sequence_number: 6000}
+                    }}
+                   when timestamp > 0
 
     assert :ok == Handler.notify_byte_count(session, :bytes_received, 4999)
-    refute_receive {:message, %DetailedMessage{
-      stream_id: 0,
-      content: %Messages.Acknowledgement{}
-    }}
+
+    refute_receive {:message,
+                    %DetailedMessage{
+                      stream_id: 0,
+                      content: %Messages.Acknowledgement{}
+                    }}
   end
 
   test "Second acknowledgement received when byte count exceeds next window size", context do
@@ -425,19 +468,25 @@ defmodule Rtmp.ClientSession.HandlerTest do
 
     assert :ok == Handler.handle_rtmp_input(session, window_ack_size)
     assert :ok == Handler.notify_byte_count(session, :bytes_received, 6000)
-    assert_receive {:message, %DetailedMessage{
-      stream_id: 0,
-      timestamp: timestamp,
-      content: %Messages.Acknowledgement{sequence_number: 6000}
-    }} when timestamp > 0
+
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: 0,
+                      timestamp: timestamp,
+                      content: %Messages.Acknowledgement{sequence_number: 6000}
+                    }}
+                   when timestamp > 0
 
     assert :ok == Handler.notify_byte_count(session, :bytes_received, 4999)
     assert :ok == Handler.notify_byte_count(session, :bytes_received, 1000)
-    assert_receive {:message, %DetailedMessage{
-      stream_id: 0,
-      timestamp: timestamp,
-      content: %Messages.Acknowledgement{sequence_number: 11999}
-    }} when timestamp > 0
+
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: 0,
+                      timestamp: timestamp,
+                      content: %Messages.Acknowledgement{sequence_number: 11999}
+                    }}
+                   when timestamp > 0
   end
 
   test "NetPlay.Reset events are bubbled up", context do
@@ -445,9 +494,9 @@ defmodule Rtmp.ClientSession.HandlerTest do
       session: session,
       stream_key: stream_key,
       active_stream_id: stream_id
-    } = get_playback_session(context);
+    } = get_playback_session(context)
 
-    description = "abc";
+    description = "abc"
 
     reset_command = %DetailedMessage{
       stream_id: stream_id,
@@ -455,23 +504,28 @@ defmodule Rtmp.ClientSession.HandlerTest do
         command_name: "onStatus",
         transaction_id: 0,
         command_object: nil,
-        additional_values: [%{
-          "level" => "status",
-          "code" => "NetStream.Play.Reset",
-          "description" => description
-        }]
+        additional_values: [
+          %{
+            "level" => "status",
+            "code" => "NetStream.Play.Reset",
+            "description" => description
+          }
+        ]
       }
     }
 
     assert :ok == Handler.handle_rtmp_input(session, reset_command)
-    assert_receive {:event, %Events.PlayResetReceived{
-      stream_key: ^stream_key,
-      description: ^description
-    }}
+
+    assert_receive {:event,
+                    %Events.PlayResetReceived{
+                      stream_key: ^stream_key,
+                      description: ^description
+                    }}
   end
 
   defp get_connected_session(context) do
-    :timer.sleep(20) # for non-zero timestamp checking
+    # for non-zero timestamp checking
+    :timer.sleep(20)
 
     test_context = %TestContext{
       session: context[:session],
@@ -481,7 +535,11 @@ defmodule Rtmp.ClientSession.HandlerTest do
 
     assert :ok == Handler.request_connection(test_context.session, test_context.app_name)
 
-    expect_connection_request_rtmp_message(test_context.app_name, test_context.options.flash_version)
+    expect_connection_request_rtmp_message(
+      test_context.app_name,
+      test_context.options.flash_version
+    )
+
     simulate_connect_response(test_context.session, true)
     expect_connection_response_received_event(true)
 
@@ -489,7 +547,7 @@ defmodule Rtmp.ClientSession.HandlerTest do
   end
 
   defp get_playback_session(context) do
-    test_context = get_connected_session(context)    
+    test_context = get_connected_session(context)
 
     stream_key = "abcdefg"
     created_stream_id = 5
@@ -497,18 +555,28 @@ defmodule Rtmp.ClientSession.HandlerTest do
     assert :ok == Handler.request_playback(test_context.session, stream_key)
     transaction_id = expect_create_stream_rtmp_message()
 
-    simulate_create_stream_response(test_context.session, transaction_id, created_stream_id)    
-    expect_buffer_length_rtmp_message(created_stream_id, test_context.options.playback_buffer_length_ms)
+    simulate_create_stream_response(test_context.session, transaction_id, created_stream_id)
+
+    expect_buffer_length_rtmp_message(
+      created_stream_id,
+      test_context.options.playback_buffer_length_ms
+    )
+
     play_transaction_id = expect_play_rtmp_message(created_stream_id, stream_key)
 
     description = "Started playing"
-    simulate_play_response(test_context.session, play_transaction_id, created_stream_id, true, description)
+
+    simulate_play_response(
+      test_context.session,
+      play_transaction_id,
+      created_stream_id,
+      true,
+      description
+    )
+
     expect_play_response_received_event(true, description, stream_key)
 
-    %{test_context | 
-      stream_key: stream_key,
-      active_stream_id: created_stream_id
-    }
+    %{test_context | stream_key: stream_key, active_stream_id: created_stream_id}
   end
 
   defp get_publishing_session(context) do
@@ -519,17 +587,21 @@ defmodule Rtmp.ClientSession.HandlerTest do
 
     assert :ok == Handler.request_publish(test_context.session, stream_key, :live)
     transaction_id = expect_create_stream_rtmp_message()
-    
+
     simulate_create_stream_response(test_context.session, transaction_id, created_stream_id)
     transaction_id = expect_publish_rtmp_message(created_stream_id, stream_key, "live")
-    
-    simulate_publish_response(test_context.session, transaction_id, created_stream_id, true, "success")
+
+    simulate_publish_response(
+      test_context.session,
+      transaction_id,
+      created_stream_id,
+      true,
+      "success"
+    )
+
     expect_publish_response_received_event(stream_key, true, "success")
 
-    %{test_context | 
-      stream_key: stream_key,
-      active_stream_id: created_stream_id
-    }
+    %{test_context | stream_key: stream_key, active_stream_id: created_stream_id}
   end
 
   defp simulate_connect_response(session, is_success, description \\ "success") do
@@ -545,16 +617,18 @@ defmodule Rtmp.ClientSession.HandlerTest do
               "fmsVer" => "fms_ver",
               "capabilities" => 31
             },
-            additional_values: [%{
-              "level" => "status",
-              "code" => "NetConnection.Connect.Success",
-              "description" => description,
-              "objectEncoding" => 0
-            }]
+            additional_values: [
+              %{
+                "level" => "status",
+                "code" => "NetConnection.Connect.Success",
+                "description" => description,
+                "objectEncoding" => 0
+              }
+            ]
           }
         }
 
-        assert :ok == Handler.handle_rtmp_input(session, command) 
+        assert :ok == Handler.handle_rtmp_input(session, command)
     end
   end
 
@@ -580,11 +654,13 @@ defmodule Rtmp.ClientSession.HandlerTest do
           command_name: "onStatus",
           transaction_id: 0,
           command_object: nil,
-          additional_values: [%{
-            "level" => "status",
-            "code" => "NetStream.Play.Start",
-            "description" => description
-          }]
+          additional_values: [
+            %{
+              "level" => "status",
+              "code" => "NetStream.Play.Start",
+              "description" => description
+            }
+          ]
         }
       }
 
@@ -600,11 +676,13 @@ defmodule Rtmp.ClientSession.HandlerTest do
           command_name: "onStatus",
           transaction_id: 0,
           command_object: nil,
-          additional_values: [%{
-            "level" => "status",
-            "code" => "NetStream.Publish.Start",
-            "description" => description
-          }]
+          additional_values: [
+            %{
+              "level" => "status",
+              "code" => "NetStream.Publish.Start",
+              "description" => description
+            }
+          ]
         }
       }
 
@@ -613,116 +691,129 @@ defmodule Rtmp.ClientSession.HandlerTest do
   end
 
   defp expect_connection_request_rtmp_message(app_name, flash_version) do
-    assert_receive {:message, %DetailedMessage{
-      stream_id: 0,
-      timestamp: timestamp,
-      content: %Messages.Amf0Command{
-        command_name: "connect",
-        transaction_id: 1.0,
-        command_object: %{
-          "app" => ^app_name,
-          "flashVer" => ^flash_version,
-          "objectEncoding" => 0
-        },
-        additional_values: []
-      }
-    }} when timestamp > 0
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: 0,
+                      timestamp: timestamp,
+                      content: %Messages.Amf0Command{
+                        command_name: "connect",
+                        transaction_id: 1.0,
+                        command_object: %{
+                          "app" => ^app_name,
+                          "flashVer" => ^flash_version,
+                          "objectEncoding" => 0
+                        },
+                        additional_values: []
+                      }
+                    }}
+                   when timestamp > 0
   end
 
   defp expect_connection_response_received_event(was_accepted, description \\ nil) do
     if description == nil do
-      assert_receive {:event, %Events.ConnectionResponseReceived{
-        was_accepted: ^was_accepted
-      }}
+      assert_receive {:event,
+                      %Events.ConnectionResponseReceived{
+                        was_accepted: ^was_accepted
+                      }}
     else
-      assert_receive {:event, %Events.ConnectionResponseReceived{
-        was_accepted: ^was_accepted,
-        response_text: ^description
-      }}
+      assert_receive {:event,
+                      %Events.ConnectionResponseReceived{
+                        was_accepted: ^was_accepted,
+                        response_text: ^description
+                      }}
     end
   end
 
   defp expect_create_stream_rtmp_message() do
-    assert_receive {:message, %DetailedMessage{
-      stream_id: 0,
-      timestamp: timestamp,
-      content: %Messages.Amf0Command{
-        command_name: "createStream",
-        transaction_id: transaction_id,
-        command_object: nil,
-        additional_values: []
-      }
-    }} when timestamp > 0
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: 0,
+                      timestamp: timestamp,
+                      content: %Messages.Amf0Command{
+                        command_name: "createStream",
+                        transaction_id: transaction_id,
+                        command_object: nil,
+                        additional_values: []
+                      }
+                    }}
+                   when timestamp > 0
 
     transaction_id
   end
 
   defp expect_buffer_length_rtmp_message(stream_id, buffer_length) do
-    assert_receive {:message, %DetailedMessage{
-      stream_id: 0,
-      content: %Messages.UserControl{
-        type: :set_buffer_length,
-        stream_id: ^stream_id,
-        buffer_length: ^buffer_length
-      }
-    }}
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: 0,
+                      content: %Messages.UserControl{
+                        type: :set_buffer_length,
+                        stream_id: ^stream_id,
+                        buffer_length: ^buffer_length
+                      }
+                    }}
   end
 
   defp expect_play_rtmp_message(stream_id, stream_key) do
-    assert_receive {:message, %DetailedMessage{
-      stream_id: ^stream_id,
-      content: %Messages.Amf0Command{
-        command_name: "play",
-        transaction_id: transaction_id,
-        command_object: nil,
-        additional_values: [^stream_key]
-      }
-    }}
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: ^stream_id,
+                      content: %Messages.Amf0Command{
+                        command_name: "play",
+                        transaction_id: transaction_id,
+                        command_object: nil,
+                        additional_values: [^stream_key]
+                      }
+                    }}
 
     transaction_id
   end
 
   defp expect_play_response_received_event(was_accepted, description, stream_key) do
     if description == nil do
-      assert_receive {:event, %Events.PlayResponseReceived{
-        was_accepted: ^was_accepted,
-        stream_key: ^stream_key
-      }}
+      assert_receive {:event,
+                      %Events.PlayResponseReceived{
+                        was_accepted: ^was_accepted,
+                        stream_key: ^stream_key
+                      }}
     else
-      assert_receive {:event, %Events.PlayResponseReceived{
-        was_accepted: ^was_accepted,
-        response_text: ^description,
-        stream_key: ^stream_key
-      }}
+      assert_receive {:event,
+                      %Events.PlayResponseReceived{
+                        was_accepted: ^was_accepted,
+                        response_text: ^description,
+                        stream_key: ^stream_key
+                      }}
     end
   end
 
   defp expect_publish_rtmp_message(stream_id, stream_key, type) do
-    assert_receive {:message, %DetailedMessage{
-      stream_id: ^stream_id,
-      content: %Messages.Amf0Command{
-        command_name: "publish",
-        transaction_id: transaction_id,
-        command_object: nil,
-        additional_values: [^stream_key, ^type]
-      }
-    }}
+    assert_receive {:message,
+                    %DetailedMessage{
+                      stream_id: ^stream_id,
+                      content: %Messages.Amf0Command{
+                        command_name: "publish",
+                        transaction_id: transaction_id,
+                        command_object: nil,
+                        additional_values: [^stream_key, ^type]
+                      }
+                    }}
 
     transaction_id
   end
 
   defp expect_publish_response_received_event(stream_key, was_accepted, description) do
     if description == nil do
-      assert_receive {:event, %Events.PublishResponseReceived{
-        stream_key: ^stream_key,
-        was_accepted: ^was_accepted,
-      }}
+      assert_receive {:event,
+                      %Events.PublishResponseReceived{
+                        stream_key: ^stream_key,
+                        was_accepted: ^was_accepted
+                      }}
     else
-      assert_receive {:event, %Events.PublishResponseReceived{
-        stream_key: ^stream_key,
-        was_accepted: ^was_accepted,
-        response_text: ^description
-      }}
+      assert_receive {:event,
+                      %Events.PublishResponseReceived{
+                        stream_key: ^stream_key,
+                        was_accepted: ^was_accepted,
+                        response_text: ^description
+                      }}
     end
   end
 end

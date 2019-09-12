@@ -1,13 +1,14 @@
 defmodule Rtmp.ClientSession.Events do
   @moduledoc false
 
-  @type t :: Rtmp.ClientSession.Events.ConnectionResponseReceived.t |
-    Rtmp.ClientSession.Events.PublishResponseReceived.t |
-    Rtmp.ClientSession.Events.PlayResponseReceived.t |
-    Rtmp.ClientSession.Events.StreamMetaDataReceived.t |
-    Rtmp.ClientSession.Events.AudioVideoDataReceived.t |
-    Rtmp.ClientSession.Events.NewByteIOTotals.t |
-    Rtmp.ClientSession.Events.PlayResetReceived.t
+  @type t ::
+          Rtmp.ClientSession.Events.ConnectionResponseReceived.t()
+          | Rtmp.ClientSession.Events.PublishResponseReceived.t()
+          | Rtmp.ClientSession.Events.PlayResponseReceived.t()
+          | Rtmp.ClientSession.Events.StreamMetaDataReceived.t()
+          | Rtmp.ClientSession.Events.AudioVideoDataReceived.t()
+          | Rtmp.ClientSession.Events.NewByteIOTotals.t()
+          | Rtmp.ClientSession.Events.PlayResetReceived.t()
 
   defmodule ConnectionResponseReceived do
     @moduledoc """
@@ -15,9 +16,9 @@ defmodule Rtmp.ClientSession.Events do
     """
 
     @type t :: %__MODULE__{
-      was_accepted: boolean,
-      response_text: String.t
-    }
+            was_accepted: boolean,
+            response_text: String.t()
+          }
 
     defstruct was_accepted: nil,
               response_text: nil
@@ -30,10 +31,10 @@ defmodule Rtmp.ClientSession.Events do
     """
 
     @type t :: %__MODULE__{
-      was_accepted: boolean,      
-      response_text: String.t,
-      stream_key: Rtmp.stream_key
-    }
+            was_accepted: boolean,
+            response_text: String.t(),
+            stream_key: Rtmp.stream_key()
+          }
 
     defstruct was_accepted: nil,
               response_text: nil,
@@ -47,10 +48,10 @@ defmodule Rtmp.ClientSession.Events do
     """
 
     @type t :: %__MODULE__{
-      stream_key: Rtmp.stream_key,
-      was_accepted: boolean,      
-      response_text: String.t,
-    }
+            stream_key: Rtmp.stream_key(),
+            was_accepted: boolean,
+            response_text: String.t()
+          }
 
     defstruct stream_key: nil,
               was_accepted: nil,
@@ -63,9 +64,9 @@ defmodule Rtmp.ClientSession.Events do
     """
 
     @type t :: %__MODULE__{
-      meta_data: Rtmp.StreamMetadata.t,
-      stream_key: Rtmp.stream_key
-    }
+            meta_data: Rtmp.StreamMetadata.t(),
+            stream_key: Rtmp.stream_key()
+          }
 
     defstruct meta_data: nil,
               stream_key: nil
@@ -77,15 +78,15 @@ defmodule Rtmp.ClientSession.Events do
     """
 
     @type t :: %__MODULE__{
-      stream_key: Rtmp.stream_key,
-      data_type: :audio | :video,
-      data: binary,
-      timestamp: non_neg_integer,
-      received_at_timestamp: pos_integer,
-    }
+            stream_key: Rtmp.stream_key(),
+            data_type: :audio | :video,
+            data: binary,
+            timestamp: non_neg_integer,
+            received_at_timestamp: pos_integer
+          }
 
     defstruct stream_key: nil,
-              data_type: nil, 
+              data_type: nil,
               data: <<>>,
               timestamp: nil,
               received_at_timestamp: nil
@@ -98,9 +99,9 @@ defmodule Rtmp.ClientSession.Events do
     """
 
     @type t :: %__MODULE__{
-      bytes_sent: non_neg_integer,
-      bytes_received: non_neg_integer
-    }
+            bytes_sent: non_neg_integer,
+            bytes_received: non_neg_integer
+          }
 
     defstruct bytes_received: 0,
               bytes_sent: 0
@@ -108,9 +109,9 @@ defmodule Rtmp.ClientSession.Events do
 
   defmodule PlayResetReceived do
     @type t :: %__MODULE__{
-      stream_key: Rtmp.stream_key,
-      description: String.t
-    }
+            stream_key: Rtmp.stream_key(),
+            description: String.t()
+          }
 
     defstruct stream_key: nil,
               description: nil

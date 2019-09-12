@@ -14,23 +14,33 @@ defmodule GenRtmpClient do
   use GenServer
 
   alias Rtmp.ClientSession.Events, as: SessionEvents
-  
+
   @type adopter_module :: module
   @type adopter_state :: any
   @type adopter_args :: any
   @type adopter_response :: {:ok, adopter_state}
   @type rtmp_client_pid :: pid
-  @type disconnection_reason :: :stopping | :closed | :inet.posix
+  @type disconnection_reason :: :stopping | :closed | :inet.posix()
 
-  @callback init(GenRtmpClient.ConnectionInfo.t, adopter_args) :: {:ok, adopter_state}
-  @callback handle_connection_response(SessionEvents.ConnectionResponseReceived.t, adopter_state) :: adopter_response
-  @callback handle_play_response(SessionEvents.PlayResponseReceived.t, adopter_state) :: adopter_response
-  @callback handle_play_reset(SessionEvents.PlayResetReceived.t, adopter_state) :: adopter_response
-  @callback handle_publish_response(SessionEvents.PublishResponseReceived.t, adopter_state) :: adopter_response
-  @callback handle_metadata_received(SessionEvents.StreamMetaDataReceived.t, adopter_state) :: adopter_response
-  @callback handle_av_data_received(SessionEvents.AudioVideoDataReceived.t, adopter_state) :: adopter_response
-  @callback handle_disconnection(disconnection_reason, adopter_state) :: {:stop, adopter_state} | {:reconnect, adopter_state}
-  @callback byte_io_totals_updated(SessionEvents.NewByteIOTotals.t, adopter_state) :: adopter_response
+  @callback init(GenRtmpClient.ConnectionInfo.t(), adopter_args) :: {:ok, adopter_state}
+  @callback handle_connection_response(
+              SessionEvents.ConnectionResponseReceived.t(),
+              adopter_state
+            ) :: adopter_response
+  @callback handle_play_response(SessionEvents.PlayResponseReceived.t(), adopter_state) ::
+              adopter_response
+  @callback handle_play_reset(SessionEvents.PlayResetReceived.t(), adopter_state) ::
+              adopter_response
+  @callback handle_publish_response(SessionEvents.PublishResponseReceived.t(), adopter_state) ::
+              adopter_response
+  @callback handle_metadata_received(SessionEvents.StreamMetaDataReceived.t(), adopter_state) ::
+              adopter_response
+  @callback handle_av_data_received(SessionEvents.AudioVideoDataReceived.t(), adopter_state) ::
+              adopter_response
+  @callback handle_disconnection(disconnection_reason, adopter_state) ::
+              {:stop, adopter_state} | {:reconnect, adopter_state}
+  @callback byte_io_totals_updated(SessionEvents.NewByteIOTotals.t(), adopter_state) ::
+              adopter_response
   @callback handle_message(any, adopter_state) :: adopter_response
 
   defmodule State do
@@ -51,7 +61,8 @@ defmodule GenRtmpClient do
               total_packets_dropped: 0
   end
 
-  @spec start_link(adopter_module, GenRtmpClient.ConnectionInfo.t, adopter_args) :: GenServer.on_start
+  @spec start_link(adopter_module, GenRtmpClient.ConnectionInfo.t(), adopter_args) ::
+          GenServer.on_start()
   @doc """
   Starts a new RTMP connection to the specified server.  The client's logic is managed by the module
   specified by the adopter_module, which is expected to adopt the `GenRtmpClient` behaviour.
@@ -66,37 +77,47 @@ defmodule GenRtmpClient do
     GenServer.cast(pid, :stop_client)
   end
 
-  @spec start_playback(rtmp_client_pid, Rtmp.stream_key) :: :ok
+  @spec start_playback(rtmp_client_pid, Rtmp.stream_key()) :: :ok
   @doc "Requests playback capabilities on the specified stream key"
   def start_playback(rtmp_client_pid, stream_key) do
     GenServer.cast(rtmp_client_pid, {:start_playback, stream_key})
   end
 
-  @spec stop_playback(rtmp_client_pid, Rtmp.stream_key) :: :ok
+  @spec stop_playback(rtmp_client_pid, Rtmp.stream_key()) :: :ok
   @doc "Stops playback on the specified stream key"
   def stop_playback(rtmp_client_pid, stream_key) do
     GenServer.cast(rtmp_client_pid, {:stop_playback, stream_key})
   end
 
-  @spec start_publish(rtmp_client_pid, Rtmp.stream_key, Rtmp.ClientSession.Handler.publish_type) :: :ok
+  @spec start_publish(
+          rtmp_client_pid,
+          Rtmp.stream_key(),
+          Rtmp.ClientSession.Handler.publish_type()
+        ) :: :ok
   @doc "Requests publish capabilities for the specified stream key"
   def start_publish(rtmp_client_pid, stream_key, type) do
     GenServer.cast(rtmp_client_pid, {:start_publish, stream_key, type})
   end
 
-  @spec stop_publish(rtmp_client_pid, Rtmp.stream_key) :: :ok
+  @spec stop_publish(rtmp_client_pid, Rtmp.stream_key()) :: :ok
   @doc "Stops publishing on the specified stream key"
   def stop_publish(rtmp_client_pid, stream_key) do
     GenServer.cast(rtmp_client_pid, {:stop_publish, stream_key})
   end
 
-  @spec publish_metadata(rtmp_client_pid, Rtmp.stream_key, Rtmp.StreamMetadata.t) :: :ok
+  @spec publish_metadata(rtmp_client_pid, Rtmp.stream_key(), Rtmp.StreamMetadata.t()) :: :ok
   @doc "Sends new metadata information to the server for the specified stream key"
   def publish_metadata(rtmp_client_pid, stream_key, metadata) do
     GenServer.cast(rtmp_client_pid, {:publish_metadata, stream_key, metadata})
   end
 
-  @spec publish_av_data(rtmp_client_pid, Rtmp.stream_key, Rtmp.ClientSession.Handler.av_type, Rtmp.timestamp, binary) :: :ok
+  @spec publish_av_data(
+          rtmp_client_pid,
+          Rtmp.stream_key(),
+          Rtmp.ClientSession.Handler.av_type(),
+          Rtmp.timestamp(),
+          binary
+        ) :: :ok
   @doc "Sends audio or video data to the server for the specified stream key"
   def publish_av_data(rtmp_client_pid, stream_key, type, timestamp, data) do
     GenServer.cast(rtmp_client_pid, {:publish_av_data, stream_key, type, timestamp, data})
@@ -118,7 +139,7 @@ defmodule GenRtmpClient do
     state = %State{
       adopter_module: adopter_module,
       adopter_state: adopter_state,
-      connection_info: connection_info,
+      connection_info: connection_info
     }
 
     case connect_to_server(state) do
@@ -136,16 +157,18 @@ defmodule GenRtmpClient do
     # TODO: Should probably make sure sequence header packets are never dropped. 
     # Otherwise the video is useless.
 
-    can_be_dropped = case packet_type do
-      :audio -> true
-      :video -> true
-      _ -> false
-    end
+    can_be_dropped =
+      case packet_type do
+        :audio -> true
+        :video -> true
+        _ -> false
+      end
 
-    state = case can_be_dropped do
-      false -> send_undroppable_packet(state, binary)
-      true -> send_droppable_packet(state, binary)        
-    end
+    state =
+      case can_be_dropped do
+        false -> send_undroppable_packet(state, binary)
+        true -> send_droppable_packet(state, binary)
+      end
 
     {:noreply, state}
   end
@@ -161,12 +184,22 @@ defmodule GenRtmpClient do
   end
 
   def handle_cast({:publish_metadata, stream_key, metadata}, state) do
-    :ok = Rtmp.ClientSession.Handler.publish_metadata(state.session_handler_pid, stream_key, metadata)
+    :ok =
+      Rtmp.ClientSession.Handler.publish_metadata(state.session_handler_pid, stream_key, metadata)
+
     {:noreply, state}
   end
 
   def handle_cast({:publish_av_data, stream_key, type, timestamp, data}, state) do
-    :ok = Rtmp.ClientSession.Handler.publish_av_data(state.session_handler_pid, stream_key, type, timestamp, data)
+    :ok =
+      Rtmp.ClientSession.Handler.publish_av_data(
+        state.session_handler_pid,
+        stream_key,
+        type,
+        timestamp,
+        data
+      )
+
     {:noreply, state}
   end
 
@@ -187,40 +220,64 @@ defmodule GenRtmpClient do
 
     case Rtmp.Handshake.process_bytes(state.handshake_state, binary) do
       {handshake_state, result = %Rtmp.Handshake.ParseResult{current_state: :waiting_for_data}} ->
-        if byte_size(result.bytes_to_send) > 0, do: :gen_tcp.send(state.socket, result.bytes_to_send)
+        if byte_size(result.bytes_to_send) > 0,
+          do: :gen_tcp.send(state.socket, result.bytes_to_send)
 
         new_state = %{state | handshake_state: handshake_state}
         :inet.setopts(state.socket, get_socket_options())
         {:noreply, new_state}
-      
+
       {handshake_state, result = %Rtmp.Handshake.ParseResult{current_state: :success}} ->
-        if byte_size(result.bytes_to_send) > 0, do: :gen_tcp.send(state.socket, result.bytes_to_send)
+        if byte_size(result.bytes_to_send) > 0,
+          do: :gen_tcp.send(state.socket, result.bytes_to_send)
 
-        {_, %Rtmp.Handshake.HandshakeResult{remaining_binary: remaining_binary}}
-          = Rtmp.Handshake.get_handshake_result(handshake_state)
+        {_, %Rtmp.Handshake.HandshakeResult{remaining_binary: remaining_binary}} =
+          Rtmp.Handshake.get_handshake_result(handshake_state)
 
-        {:ok, protocol_pid} = Rtmp.Protocol.Handler.start_link(state.connection_info.connection_id, self(), __MODULE__)
-        {:ok, session_pid} = Rtmp.ClientSession.Handler.start_link(state.connection_info.connection_id, %Rtmp.ClientSession.Configuration{})
+        {:ok, protocol_pid} =
+          Rtmp.Protocol.Handler.start_link(
+            state.connection_info.connection_id,
+            self(),
+            __MODULE__
+          )
 
-        :ok = Rtmp.Protocol.Handler.set_session(protocol_pid, session_pid, Rtmp.ClientSession.Handler)
-        :ok = Rtmp.ClientSession.Handler.set_protocol_handler(session_pid, protocol_pid, Rtmp.Protocol.Handler)
+        {:ok, session_pid} =
+          Rtmp.ClientSession.Handler.start_link(
+            state.connection_info.connection_id,
+            %Rtmp.ClientSession.Configuration{}
+          )
+
+        :ok =
+          Rtmp.Protocol.Handler.set_session(protocol_pid, session_pid, Rtmp.ClientSession.Handler)
+
+        :ok =
+          Rtmp.ClientSession.Handler.set_protocol_handler(
+            session_pid,
+            protocol_pid,
+            Rtmp.Protocol.Handler
+          )
+
         :ok = Rtmp.ClientSession.Handler.set_event_handler(session_pid, self(), __MODULE__)
         :ok = Rtmp.Protocol.Handler.notify_input(protocol_pid, remaining_binary)
 
-        state = %{state |
-          handshake_state: nil,
-          connection_status: :open,
-          protocol_handler_pid: protocol_pid,
-          session_handler_pid: session_pid,
+        state = %{
+          state
+          | handshake_state: nil,
+            connection_status: :open,
+            protocol_handler_pid: protocol_pid,
+            session_handler_pid: session_pid
         }
 
-        _ = Logger.info "#{state.connection_info.connection_id}: handshake complete"
+        _ = Logger.info("#{state.connection_info.connection_id}: handshake complete")
 
         :ok = send_connect_command(state)
         {:noreply, state}
 
       {_, %Rtmp.Handshake.ParseResult{current_state: :failure}} ->
-        _ = Logger.info "#{state.connection_info.connection_id}: Client failed the handshake, disconnecting..."
+        _ =
+          Logger.info(
+            "#{state.connection_info.connection_id}: Client failed the handshake, disconnecting..."
+          )
 
         :gen_tcp.close(state.socket)
         {:noreply, state}
@@ -242,7 +299,7 @@ defmodule GenRtmpClient do
 
       {:ok, state} ->
         # reconnected
-        {:noreply, state}      
+        {:noreply, state}
     end
   end
 
@@ -258,20 +315,32 @@ defmodule GenRtmpClient do
   end
 
   defp send_connect_command(state) do
-    Rtmp.ClientSession.Handler.request_connection(state.session_handler_pid, state.connection_info.app_name)
+    Rtmp.ClientSession.Handler.request_connection(
+      state.session_handler_pid,
+      state.connection_info.app_name
+    )
   end
 
   defp connect_to_server(state) do
-    case :gen_tcp.connect(String.to_charlist(state.connection_info.host), state.connection_info.port, get_socket_options()) do
-      {:error, reason} -> notify_disconnection(state, reason)
+    case :gen_tcp.connect(
+           String.to_charlist(state.connection_info.host),
+           state.connection_info.port,
+           get_socket_options()
+         ) do
+      {:error, reason} ->
+        notify_disconnection(state, reason)
+
       {:ok, socket} ->
-        {handshake_state, %Rtmp.Handshake.ParseResult{bytes_to_send: bytes_to_send}} = Rtmp.Handshake.new(:digest)
+        {handshake_state, %Rtmp.Handshake.ParseResult{bytes_to_send: bytes_to_send}} =
+          Rtmp.Handshake.new(:digest)
+
         :ok = :gen_tcp.send(socket, bytes_to_send)
 
-        state = %{state | 
-          socket: socket,
-          handshake_state: handshake_state,
-          connection_status: :handshaking
+        state = %{
+          state
+          | socket: socket,
+            handshake_state: handshake_state,
+            connection_status: :handshaking
         }
 
         {:ok, state}
@@ -282,26 +351,30 @@ defmodule GenRtmpClient do
     state = %{state | connection_status: :disconnected}
 
     case state.adopter_module.handle_disconnection(reason, state.adopter_state) do
-      {:stop, adopter_state} -> 
+      {:stop, adopter_state} ->
         {:permanently_disconnected, %{state | adopter_state: adopter_state}}
 
-      {:retry, adopter_state} -> 
+      {:retry, adopter_state} ->
         connect_to_server(%{state | adopter_state: adopter_state})
     end
   end
 
   defp handle_event(event = %SessionEvents.AudioVideoDataReceived{}, state) do
-    {:ok, adopter_state} = state.adopter_module.handle_av_data_received(event, state.adopter_state)
+    {:ok, adopter_state} =
+      state.adopter_module.handle_av_data_received(event, state.adopter_state)
+
     %{state | adopter_state: adopter_state}
   end
 
   defp handle_event(event = %SessionEvents.NewByteIOTotals{}, state) do
     {:ok, adopter_state} = state.adopter_module.byte_io_totals_updated(event, state.adopter_state)
-    %{state | adopter_state: adopter_state}    
+    %{state | adopter_state: adopter_state}
   end
 
   defp handle_event(event = %SessionEvents.ConnectionResponseReceived{}, state) do
-    {:ok, adopter_state} = state.adopter_module.handle_connection_response(event, state.adopter_state)
+    {:ok, adopter_state} =
+      state.adopter_module.handle_connection_response(event, state.adopter_state)
+
     %{state | adopter_state: adopter_state}
   end
 
@@ -316,7 +389,9 @@ defmodule GenRtmpClient do
   end
 
   defp handle_event(event = %SessionEvents.PublishResponseReceived{}, state) do
-    {:ok, adopter_state} = state.adopter_module.handle_publish_response(event, state.adopter_state)
+    {:ok, adopter_state} =
+      state.adopter_module.handle_publish_response(event, state.adopter_state)
+
     %{state | adopter_state: adopter_state}
   end
 
@@ -327,7 +402,8 @@ defmodule GenRtmpClient do
 
   defp send_droppable_packet(state, binary) do
     case :erlang.port_command(state.socket, binary, [:nosuspend]) do
-      true -> mark_packet_as_sent(state, binary)
+      true ->
+        mark_packet_as_sent(state, binary)
 
       false ->
         # Port is too busy to send, drop the packet
@@ -336,18 +412,21 @@ defmodule GenRtmpClient do
   end
 
   defp mark_packet_as_sent(state, binary) do
-    %{state |
-      total_bytes_sent: state.total_bytes_sent + byte_size(binary),
-      total_packets_sent: state.total_packets_sent + 1
+    %{
+      state
+      | total_bytes_sent: state.total_bytes_sent + byte_size(binary),
+        total_packets_sent: state.total_packets_sent + 1
     }
   end
 
   defp mark_packet_as_dropped(state, binary) do
-    %{state |
-      total_bytes_dropped: state.total_bytes_dropped + byte_size(binary),
-      total_packets_dropped: state.total_packets_dropped + 1
+    %{
+      state
+      | total_bytes_dropped: state.total_bytes_dropped + byte_size(binary),
+        total_packets_dropped: state.total_packets_dropped + 1
     }
   end
 
-  defp get_socket_options(), do: [:binary | Keyword.new(active: :once, packet: :raw, buffer: 4096)]
+  defp get_socket_options(),
+    do: [:binary | Keyword.new(active: :once, packet: :raw, buffer: 4096)]
 end

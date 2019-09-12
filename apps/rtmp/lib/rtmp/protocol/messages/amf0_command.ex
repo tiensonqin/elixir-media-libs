@@ -5,12 +5,12 @@ defmodule Rtmp.Protocol.Messages.Amf0Command do
 
   @behaviour Rtmp.Protocol.RawMessage
   @type t :: %__MODULE__{}
-  
+
   defstruct command_name: nil,
             transaction_id: nil,
             command_object: nil,
             additional_values: []
-  
+
   def deserialize(data) do
     {:ok, objects} = get_data(data) |> Amf0.deserialize()
     [command_name, transaction_id, command_object | rest] = objects
@@ -22,14 +22,18 @@ defmodule Rtmp.Protocol.Messages.Amf0Command do
       additional_values: rest
     }
   end
-  
+
   def serialize(message = %__MODULE__{}) do
-    objects = [message.command_name, message.transaction_id, message.command_object | message.additional_values]
-    
-    {:ok, Amf0.serialize(objects)} 
+    objects = [
+      message.command_name,
+      message.transaction_id,
+      message.command_object | message.additional_values
+    ]
+
+    {:ok, Amf0.serialize(objects)}
   end
-  
-  def get_default_chunk_stream_id(%__MODULE__{}),  do: 3
+
+  def get_default_chunk_stream_id(%__MODULE__{}), do: 3
 
   # For some reason AMF3 commands are just AMF0 encoded commands with a zero in front of it
   # so remove the zero

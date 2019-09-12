@@ -32,16 +32,18 @@ defmodule Rtmp.Handshake.OldHandshakeFormat do
   @doc "Validates if the passed in binary can be parsed using the old style handshake."
   def is_valid_format(binary) do
     case byte_size(binary) >= 16 do
-      false -> :unknown
+      false ->
+        :unknown
+
       true ->
         case binary do
-          <<3::1 * 8, _::4 * 8, 0::4 * 8, _::binary>> -> :yes
+          <<3::1*8, _::4*8, 0::4*8, _::binary>> -> :yes
           _ -> :no
         end
     end
   end
 
-  @spec process_bytes(state, binary) :: {state, Rtmp.Handshake.process_result}
+  @spec process_bytes(state, binary) :: {state, Rtmp.Handshake.process_result()}
   @doc "Attempts to proceed with the handshake process with the passed in bytes"
   def process_bytes(state = %State{}, binary) do
     state = %{state | unparsed_binary: state.unparsed_binary <> binary}
@@ -53,7 +55,8 @@ defmodule Rtmp.Handshake.OldHandshakeFormat do
   def create_p0_and_p1_to_send(state = %State{}) do
     state = %{state | random_data: :crypto.strong_rand_bytes(1528)}
     p0 = <<3::8>>
-    p1 = <<0::4 * 8, 0::4 * 8>> <> state.random_data # local start time is alawys zero
+    # local start time is alawys zero
+    p1 = <<0::4*8, 0::4*8>> <> state.random_data
     {state, p0 <> p1}
   end
 
@@ -63,10 +66,7 @@ defmodule Rtmp.Handshake.OldHandshakeFormat do
     else
       case state.unparsed_binary do
         <<3::8, rest::binary>> ->
-          state = %{state |
-            unparsed_binary: rest,
-            current_stage: :p1
-          }
+          state = %{state | unparsed_binary: rest, current_stage: :p1}
 
           do_process_bytes(state)
 
@@ -81,12 +81,14 @@ defmodule Rtmp.Handshake.OldHandshakeFormat do
       send_incomplete_response(state)
     else
       case state.unparsed_binary do
-        <<time::4 * 8, 0::4 * 8, random::binary-size(1528), rest::binary>> ->
-          state = %{state |
-            bytes_to_send: state.bytes_to_send <> <<time::4 * 8, 0::4 * 8>> <> random, # packet 2
-            unparsed_binary: rest,
-            received_start_time: time,
-            current_stage: :p2
+        <<time::4*8, 0::4*8, random::binary-size(1528), rest::binary>> ->
+          state = %{
+            state
+            | # packet 2
+              bytes_to_send: state.bytes_to_send <> <<time::4*8, 0::4*8>> <> random,
+              unparsed_binary: rest,
+              received_start_time: time,
+              current_stage: :p2
           }
 
           do_process_bytes(state)
@@ -101,12 +103,11 @@ defmodule Rtmp.Handshake.OldHandshakeFormat do
     if byte_size(state.unparsed_binary) < 1536 do
       send_incomplete_response(state)
     else
-
       expected_random = state.random_data
       random_size = byte_size(expected_random)
 
       case state.unparsed_binary do
-        <<0::4 * 8, _::4 * 8, ^expected_random::size(random_size)-binary, rest::binary>> ->
+        <<0::4*8, _::4*8, ^expected_random::size(random_size)-binary, rest::binary>> ->
           bytes_to_send = state.bytes_to_send
           state = %{state | unparsed_binary: <<>>, current_stage: :complete, bytes_to_send: <<>>}
           {state, {:success, state.received_start_time, bytes_to_send, rest}}
@@ -121,5 +122,5 @@ defmodule Rtmp.Handshake.OldHandshakeFormat do
     bytes_to_send = state.bytes_to_send
     state = %{state | bytes_to_send: <<>>}
     {state, {:incomplete, bytes_to_send}}
-  end  
+  end
 end

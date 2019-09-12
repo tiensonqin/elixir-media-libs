@@ -1,10 +1,10 @@
 defmodule GenRtmpClient.ConnectionInfo do
   @type t :: %__MODULE__{
-    host: String.t,
-    port: pos_integer,
-    app_name: Rtmp.app_name,
-    connection_id: String.t
-  }
+          host: String.t(),
+          port: pos_integer,
+          app_name: Rtmp.app_name(),
+          connection_id: String.t()
+        }
 
   defstruct host: nil,
             port: nil,

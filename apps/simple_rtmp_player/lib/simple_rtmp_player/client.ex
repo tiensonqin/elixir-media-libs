@@ -50,13 +50,16 @@ defmodule SimpleRtmpPlayer.Client do
 
   def handle_av_data_received(av_message, state) do
     state = %{state | av_bytes_received: state.av_bytes_received + byte_size(av_message.data)}
-    state = cond do
-      state.av_bytes_received - state.last_av_announcement > 10_1000 ->
-        _ = Logger.debug("Received #{state.av_bytes_received} bytes of a/v data")
-        %{state | last_av_announcement: state.av_bytes_received}
 
-      true -> state
-    end
+    state =
+      cond do
+        state.av_bytes_received - state.last_av_announcement > 10_1000 ->
+          _ = Logger.debug("Received #{state.av_bytes_received} bytes of a/v data")
+          %{state | last_av_announcement: state.av_bytes_received}
+
+        true ->
+          state
+      end
 
     {:ok, state}
   end
@@ -72,8 +75,11 @@ defmodule SimpleRtmpPlayer.Client do
   end
 
   def handle_message(message, state) do
-    _ = Logger.warn("#{state.connection_info.connection_id}: Unable to handle client message: #{message}")
+    _ =
+      Logger.warn(
+        "#{state.connection_info.connection_id}: Unable to handle client message: #{message}"
+      )
+
     {:ok, state}
   end
-
 end

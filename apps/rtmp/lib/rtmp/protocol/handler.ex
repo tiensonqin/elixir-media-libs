@@ -38,7 +38,8 @@ defmodule Rtmp.Protocol.Handler do
     defstruct connection_id: nil,
               socket: nil,
               socket_module: nil,
-              chunk_io_state: ChunkIo.new(), # nil,
+              # nil,
+              chunk_io_state: ChunkIo.new(),
               session_process: nil,
               session_module: nil,
               bytes_received: 0,
@@ -48,13 +49,18 @@ defmodule Rtmp.Protocol.Handler do
               io_notification_timer: nil
   end
 
-  @spec start_link(Rtmp.connection_id, Rtmp.Behaviours.SocketHandler.socket_handler_pid, socket_transport_module) :: {:ok, protocol_handler}
+  @spec start_link(
+          Rtmp.connection_id(),
+          Rtmp.Behaviours.SocketHandler.socket_handler_pid(),
+          socket_transport_module
+        ) :: {:ok, protocol_handler}
   @doc "Starts a new protocol handler process"
   def start_link(connection_id, socket, socket_module) do
     GenServer.start_link(__MODULE__, [connection_id, socket, socket_module])
   end
 
-  @spec set_session(protocol_handler, session_process, session_handler_module) :: :ok | :session_already_set
+  @spec set_session(protocol_handler, session_process, session_handler_module) ::
+          :ok | :session_already_set
   @doc """
   Specifies the session handler process and function to use to send deserialized
   RTMP messages to for the session handler.
@@ -74,7 +80,7 @@ defmodule Rtmp.Protocol.Handler do
     GenServer.cast(pid, {:socket_input, binary})
   end
 
-  @spec send_message(protocol_handler, DetailedMessage.t) :: :ok
+  @spec send_message(protocol_handler, DetailedMessage.t()) :: :ok
   @doc """
   Notifies the protocol handler of an rtmp message that should be serialized
   and sent to the peer.
@@ -90,21 +96,19 @@ defmodule Rtmp.Protocol.Handler do
       socket_module: socket_module,
       chunk_io_state: ChunkIo.new()
     }
+
     {:ok, state}
   end
 
   def handle_call({:set_session, {pid, session_module}}, _from, state) do
-    state = %{state |
-      session_process: pid,
-      session_module: session_module
-    }
+    state = %{state | session_process: pid, session_module: session_module}
 
     {:reply, :ok, state}
   end
 
   def handle_cast({:socket_input, binary}, state) do
     if state.session_process == nil || state.session_module == nil do
-      raise ("Input received, but session process and notification functions are not set yet")
+      raise "Input received, but session process and notification functions are not set yet"
     end
 
     state = process_bytes(state, binary)
@@ -121,19 +125,22 @@ defmodule Rtmp.Protocol.Handler do
     {chunk_io_state, data} = ChunkIo.serialize(state.chunk_io_state, raw_message, csid)
     state = %{state | chunk_io_state: chunk_io_state}
 
-    state = case message.content do
-      %SetChunkSize{size: size} ->
-        chunk_io_state = ChunkIo.set_sending_max_chunk_size(state.chunk_io_state, size)
-        %{state | chunk_io_state: chunk_io_state}
+    state =
+      case message.content do
+        %SetChunkSize{size: size} ->
+          chunk_io_state = ChunkIo.set_sending_max_chunk_size(state.chunk_io_state, size)
+          %{state | chunk_io_state: chunk_io_state}
 
-      _ -> state
-    end
+        _ ->
+          state
+      end
 
-    packet_type = case message.content do
-      %VideoData{} -> :video
-      %AudioData{} -> :audio
-      _ -> :misc
-    end
+    packet_type =
+      case message.content do
+        %VideoData{} -> :video
+        %AudioData{} -> :audio
+        _ -> :misc
+      end
 
     :ok = state.socket_module.send_data(state.socket, data, packet_type)
     state = %{state | bytes_sent: state.bytes_sent + byte_size(data)}
@@ -144,17 +151,28 @@ defmodule Rtmp.Protocol.Handler do
 
   def handle_info(:send_io_notifications, state) do
     if state.bytes_sent > state.last_bytes_sent_notification_at do
-      :ok = state.session_module.notify_byte_count(state.session_process, :bytes_sent, state.bytes_sent)
+      :ok =
+        state.session_module.notify_byte_count(
+          state.session_process,
+          :bytes_sent,
+          state.bytes_sent
+        )
     end
 
     if state.bytes_received > state.last_bytes_received_notification_at do
-      :ok = state.session_module.notify_byte_count(state.session_process, :bytes_received, state.bytes_received)
+      :ok =
+        state.session_module.notify_byte_count(
+          state.session_process,
+          :bytes_received,
+          state.bytes_received
+        )
     end
 
-    state = %{state | 
-      io_notification_timer: nil,
-      last_bytes_received_notification_at: state.bytes_received,
-      last_bytes_sent_notification_at: state.bytes_sent
+    state = %{
+      state
+      | io_notification_timer: nil,
+        last_bytes_received_notification_at: state.bytes_received,
+        last_bytes_sent_notification_at: state.bytes_sent
     }
 
     {:noreply, state}
@@ -174,7 +192,11 @@ defmodule Rtmp.Protocol.Handler do
   defp act_on_message(state, raw_message) do
     case RawMessage.unpack(raw_message) do
       {:error, :unknown_message_type} ->
-        _ = Logger.error "#{state.connection_id}: Received message of type #{raw_message.message_type_id} but we have no known way to unpack it!"
+        _ =
+          Logger.error(
+            "#{state.connection_id}: Received message of type #{raw_message.message_type_id} but we have no known way to unpack it!"
+          )
+
         state
 
       {:ok, message = %DetailedMessage{content: %SetChunkSize{size: size}}} ->
@@ -192,11 +214,12 @@ defmodule Rtmp.Protocol.Handler do
 
   defp trigger_io_notification_timer(state) do
     case state.io_notification_timer do
-      nil -> 
+      nil ->
         :erlang.send_after(500, self(), :send_io_notifications)
         %{state | io_notification_timer: :active}
 
-      _ -> state
+      _ ->
+        state
     end
   end
 

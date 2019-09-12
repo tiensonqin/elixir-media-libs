@@ -1,20 +1,21 @@
 defmodule Rtmp.ServerSession.Events do
   @moduledoc false
 
-  @type t :: Rtmp.ServerSession.Events.PeerChunkSizeChanged.t |
-    Rtmp.ServerSession.Events.ConnectionRequested.t |
-    Rtmp.ServerSession.Events.ReleaseStreamRequested.t |
-    Rtmp.ServerSession.Events.PublishStreamRequested.t |
-    Rtmp.ServerSession.Events.StreamMetaDataChanged.t |
-    Rtmp.ServerSession.Events.AudioVideoDataReceived.t |
-    Rtmp.ServerSession.Events.UnhandleableAmf0Command.t |
-    Rtmp.ServerSession.Events.PublishingFinished.t |
-    Rtmp.ServerSession.Events.PlayStreamRequested.t |
-    Rtmp.ServerSession.Events.PlayStreamFinished.t |
-    Rtmp.ServerSession.Events.NewByteIOTotals.t |
-    Rtmp.ServerSession.Events.AcknowledgementReceived.t |
-    Rtmp.ServerSession.Events.PingResponseReceived.t |
-    Rtmp.ServerSession.Events.PingRequestSent.t
+  @type t ::
+          Rtmp.ServerSession.Events.PeerChunkSizeChanged.t()
+          | Rtmp.ServerSession.Events.ConnectionRequested.t()
+          | Rtmp.ServerSession.Events.ReleaseStreamRequested.t()
+          | Rtmp.ServerSession.Events.PublishStreamRequested.t()
+          | Rtmp.ServerSession.Events.StreamMetaDataChanged.t()
+          | Rtmp.ServerSession.Events.AudioVideoDataReceived.t()
+          | Rtmp.ServerSession.Events.UnhandleableAmf0Command.t()
+          | Rtmp.ServerSession.Events.PublishingFinished.t()
+          | Rtmp.ServerSession.Events.PlayStreamRequested.t()
+          | Rtmp.ServerSession.Events.PlayStreamFinished.t()
+          | Rtmp.ServerSession.Events.NewByteIOTotals.t()
+          | Rtmp.ServerSession.Events.AcknowledgementReceived.t()
+          | Rtmp.ServerSession.Events.PingResponseReceived.t()
+          | Rtmp.ServerSession.Events.PingRequestSent.t()
 
   defmodule PeerChunkSizeChanged do
     @moduledoc """
@@ -23,8 +24,8 @@ defmodule Rtmp.ServerSession.Events do
     """
 
     @type t :: %__MODULE__{
-      new_chunk_size: pos_integer
-    }
+            new_chunk_size: pos_integer
+          }
 
     defstruct new_chunk_size: nil
   end
@@ -36,9 +37,9 @@ defmodule Rtmp.ServerSession.Events do
     """
 
     @type t :: %__MODULE__{
-      request_id: integer,
-      app_name: Rtmp.app_name
-    }
+            request_id: integer,
+            app_name: Rtmp.app_name()
+          }
 
     defstruct request_id: nil,
               app_name: nil
@@ -51,10 +52,10 @@ defmodule Rtmp.ServerSession.Events do
     """
 
     @type t :: %__MODULE__{
-      request_id: integer,
-      app_name: Rtmp.app_name,
-      stream_key: Rtmp.stream_key
-    }
+            request_id: integer,
+            app_name: Rtmp.app_name(),
+            stream_key: Rtmp.stream_key()
+          }
 
     defstruct request_id: nil,
               app_name: nil,
@@ -68,11 +69,11 @@ defmodule Rtmp.ServerSession.Events do
     """
 
     @type t :: %__MODULE__{
-      request_id: integer,
-      app_name: Rtmp.app_name,
-      stream_key: Rtmp.stream_key,
-      stream_id: non_neg_integer
-    }
+            request_id: integer,
+            app_name: Rtmp.app_name(),
+            stream_key: Rtmp.stream_key(),
+            stream_id: non_neg_integer
+          }
 
     defstruct request_id: nil,
               app_name: nil,
@@ -87,9 +88,9 @@ defmodule Rtmp.ServerSession.Events do
     """
 
     @type t :: %__MODULE__{
-      app_name: Rtmp.app_name,
-      stream_key: Rtmp.stream_key
-    }
+            app_name: Rtmp.app_name(),
+            stream_key: Rtmp.stream_key()
+          }
 
     defstruct app_name: nil,
               stream_key: nil
@@ -102,10 +103,10 @@ defmodule Rtmp.ServerSession.Events do
     """
 
     @type t :: %__MODULE__{
-      app_name: Rtmp.app_name,
-      stream_key: Rtmp.stream_key,
-      meta_data: Rtmp.StreamMetadata.t
-    }
+            app_name: Rtmp.app_name(),
+            stream_key: Rtmp.stream_key(),
+            meta_data: Rtmp.StreamMetadata.t()
+          }
 
     defstruct app_name: nil,
               stream_key: nil,
@@ -118,17 +119,17 @@ defmodule Rtmp.ServerSession.Events do
     """
 
     @type t :: %__MODULE__{
-      app_name: Rtmp.app_name,
-      stream_key: Rtmp.stream_key,
-      data_type: :audio | :video,
-      data: binary,
-      timestamp: non_neg_integer,
-      received_at_timestamp: pos_integer
-    }
+            app_name: Rtmp.app_name(),
+            stream_key: Rtmp.stream_key(),
+            data_type: :audio | :video,
+            data: binary,
+            timestamp: non_neg_integer,
+            received_at_timestamp: pos_integer
+          }
 
     defstruct app_name: nil,
               stream_key: nil,
-              data_type: nil, 
+              data_type: nil,
               data: <<>>,
               timestamp: nil,
               received_at_timestamp: nil
@@ -141,8 +142,8 @@ defmodule Rtmp.ServerSession.Events do
     """
 
     @type t :: %__MODULE__{
-      command: %Rtmp.Protocol.Messages.Amf0Command{}
-    }
+            command: %Rtmp.Protocol.Messages.Amf0Command{}
+          }
 
     defstruct command: nil
   end
@@ -155,15 +156,15 @@ defmodule Rtmp.ServerSession.Events do
     @type video_type :: :live | :recorded | :any
 
     @type t :: %__MODULE__{
-      request_id: integer,
-      app_name: Rtmp.app_name,
-      stream_key: Rtmp.stream_key,
-      video_type: video_type,
-      start_at: non_neg_integer,
-      duration: integer,
-      reset: boolean,
-      stream_id: non_neg_integer
-    }
+            request_id: integer,
+            app_name: Rtmp.app_name(),
+            stream_key: Rtmp.stream_key(),
+            video_type: video_type,
+            start_at: non_neg_integer,
+            duration: integer,
+            reset: boolean,
+            stream_id: non_neg_integer
+          }
 
     defstruct request_id: nil,
               app_name: nil,
@@ -181,9 +182,9 @@ defmodule Rtmp.ServerSession.Events do
     """
 
     @type t :: %__MODULE__{
-      app_name: Rtmp.app_name,
-      stream_key: Rtmp.stream_key
-    }
+            app_name: Rtmp.app_name(),
+            stream_key: Rtmp.stream_key()
+          }
 
     defstruct app_name: nil,
               stream_key: nil
@@ -196,9 +197,9 @@ defmodule Rtmp.ServerSession.Events do
     """
 
     @type t :: %__MODULE__{
-      bytes_sent: non_neg_integer,
-      bytes_received: non_neg_integer
-    }
+            bytes_sent: non_neg_integer,
+            bytes_received: non_neg_integer
+          }
 
     defstruct bytes_received: 0,
               bytes_sent: 0
@@ -211,8 +212,8 @@ defmodule Rtmp.ServerSession.Events do
     """
 
     @type t :: %__MODULE__{
-      bytes_received: non_neg_integer
-    }
+            bytes_received: non_neg_integer
+          }
 
     defstruct bytes_received: 0
   end
@@ -223,8 +224,8 @@ defmodule Rtmp.ServerSession.Events do
     """
 
     @type t :: %__MODULE__{
-      timestamp: non_neg_integer
-    }
+            timestamp: non_neg_integer
+          }
 
     defstruct timestamp: nil
   end
@@ -235,10 +236,9 @@ defmodule Rtmp.ServerSession.Events do
     """
 
     @type t :: %__MODULE__{
-      timestamp: non_neg_integer
-    }
+            timestamp: non_neg_integer
+          }
 
     defstruct timestamp: nil
   end
-
 end

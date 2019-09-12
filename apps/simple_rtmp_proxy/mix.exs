@@ -10,13 +10,13 @@ defmodule SimpleRtmpProxy.Mixfile do
       deps_path: "../../deps",
       lockfile: "../../mix.lock",
       elixir: "~> 1.4",
-      build_embedded: Mix.env == :prod,
-      start_permanent: Mix.env == :prod,
+      build_embedded: Mix.env() == :prod,
+      start_permanent: Mix.env() == :prod,
       deps: deps(),
       escript: [
         main_module: SimpleRtmpProxy,
         name: "simple_rtmp_proxy.escript"
-      ],
+      ]
     ]
   end
 
@@ -27,7 +27,7 @@ defmodule SimpleRtmpProxy.Mixfile do
   defp deps do
     [
       {:gen_rtmp_server, in_umbrella: true},
-      {:gen_rtmp_client, in_umbrella: true},
+      {:gen_rtmp_client, in_umbrella: true}
     ]
   end
 end

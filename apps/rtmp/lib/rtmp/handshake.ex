@@ -39,9 +39,10 @@ defmodule Rtmp.Handshake do
   @type remaining_binary :: <<>>
   @type binary_response :: <<>>
   @type behaviour_state :: any
-  @type process_result :: {:success, start_time, binary_response, remaining_binary}
-                          | {:incomplete, binary_response}
-                          | :failure
+  @type process_result ::
+          {:success, start_time, binary_response, remaining_binary}
+          | {:incomplete, binary_response}
+          | :failure
 
   @callback is_valid_format(<<>>) :: is_valid_format_result
   @callback process_bytes(behaviour_state, <<>>) :: {behaviour_state, process_result}
@@ -65,7 +66,7 @@ defmodule Rtmp.Handshake do
   (since a server won't know what type of handshake to use until it
   receives packets c0 and c1).
   """
-  @spec new(handshake_type) :: {handshake_state, ParseResult.t}
+  @spec new(handshake_type) :: {handshake_state, ParseResult.t()}
   def new(:old) do
     {handshake_state, bytes_to_send} =
       OldHandshakeFormat.new()
@@ -92,7 +93,7 @@ defmodule Rtmp.Handshake do
   end
 
   @doc "Reads the passed in binary to proceed with the handshaking process"
-  @spec process_bytes(handshake_state, <<>>) :: {handshake_state, ParseResult.t}
+  @spec process_bytes(handshake_state, <<>>) :: {handshake_state, ParseResult.t()}
   def process_bytes(state = %State{handshake_type: :unknown}, binary) when is_binary(binary) do
     state = %{state | remaining_binary: state.remaining_binary <> binary}
     is_old_format = OldHandshakeFormat.is_valid_format(state.remaining_binary)
@@ -103,10 +104,12 @@ defmodule Rtmp.Handshake do
         handshake_state = DigestHandshakeFormat.new()
 
         binary = state.remaining_binary
-        state = %{state |
-          remaining_binary: <<>>,
-          handshake_type: :digest,
-          handshake_state: handshake_state
+
+        state = %{
+          state
+          | remaining_binary: <<>>,
+            handshake_type: :digest,
+            handshake_state: handshake_state
         }
 
         # Processing bytes should trigger p0 and p1 to be sent
@@ -120,10 +123,12 @@ defmodule Rtmp.Handshake do
           |> OldHandshakeFormat.create_p0_and_p1_to_send()
 
         binary = state.remaining_binary
-        state = %{state |
-          remaining_binary: <<>>,
-          handshake_type: :old,
-          handshake_state: handshake_state
+
+        state = %{
+          state
+          | remaining_binary: <<>>,
+            handshake_type: :old,
+            handshake_state: handshake_state
         }
 
         {state, result} = process_bytes(state, binary)
@@ -150,11 +155,12 @@ defmodule Rtmp.Handshake do
         {state, %ParseResult{current_state: :waiting_for_data, bytes_to_send: bytes_to_send}}
 
       {handshake_state, {:success, start_time, response, remaining_binary}} ->
-        state = %{state |
-          handshake_state: handshake_state,
-          remaining_binary: remaining_binary,
-          peer_start_timestamp: start_time,
-          status: :complete
+        state = %{
+          state
+          | handshake_state: handshake_state,
+            remaining_binary: remaining_binary,
+            peer_start_timestamp: start_time,
+            status: :complete
         }
 
         result = %ParseResult{current_state: :success, bytes_to_send: response}
@@ -173,11 +179,12 @@ defmodule Rtmp.Handshake do
         {state, %ParseResult{current_state: :waiting_for_data, bytes_to_send: bytes_to_send}}
 
       {handshake_state, {:success, start_time, response, remaining_binary}} ->
-        state = %{state |
-          handshake_state: handshake_state,
-          remaining_binary: remaining_binary,
-          peer_start_timestamp: start_time,
-          status: :complete
+        state = %{
+          state
+          | handshake_state: handshake_state,
+            remaining_binary: remaining_binary,
+            peer_start_timestamp: start_time,
+            status: :complete
         }
 
         result = %ParseResult{current_state: :success, bytes_to_send: response}
@@ -191,17 +198,16 @@ defmodule Rtmp.Handshake do
   may need to be parsed later (not part of the handshake but instead
   the beginning of the rtmp protocol).
   """
-  @spec get_handshake_result(handshake_state) :: {handshake_state, HandshakeResult.t}
+  @spec get_handshake_result(handshake_state) :: {handshake_state, HandshakeResult.t()}
   def get_handshake_result(state = %State{status: :complete}) do
     unparsed_binary = state.remaining_binary
-    
+
     {
       %{state | remaining_binary: <<>>},
       %HandshakeResult{
-        peer_start_timestamp: state.peer_start_timestamp, 
+        peer_start_timestamp: state.peer_start_timestamp,
         remaining_binary: unparsed_binary
       }
     }
   end
-
 end
