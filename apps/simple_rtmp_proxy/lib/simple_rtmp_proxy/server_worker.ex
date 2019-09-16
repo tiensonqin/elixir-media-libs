@@ -42,6 +42,7 @@ defmodule SimpleRtmpProxy.ServerWorker do
 
     state = %State{
       session_id: session_id,
+      # inbound client
       client_ip: client_ip,
       client_info: %ClientInfo{
         host: host,
@@ -184,6 +185,7 @@ defmodule SimpleRtmpProxy.ServerWorker do
         state
 
       # state.audio_sequence_header == nil -> state
+
       state.metadata == nil ->
         state
 

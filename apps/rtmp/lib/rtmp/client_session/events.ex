@@ -12,7 +12,7 @@ defmodule Rtmp.ClientSession.Events do
 
   defmodule ConnectionResponseReceived do
     @moduledoc """
-    Indicates that the server has accepted or rejcted the connection request
+    Indicates that the server has accepted or rejected the connection request
     """
 
     @type t :: %__MODULE__{

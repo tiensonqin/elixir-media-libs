@@ -3,7 +3,7 @@ defmodule Rtmp.Protocol.RtmpTime do
   Provides utilities to work with timestamps in an RTMP context.
 
   RTMP timestamps are 32 bits (unsigned) integers and thus roll over every ~50 days.
-  All adjacent timestamps are within 2^31 - 1 milliseconds of 
+  All adjacent timestamps are within 2^31 - 1 milliseconds of
   each other (e.g.  10000 comes after 4000000000, and 3000000000 comes before 4000000000).
 
   """
@@ -21,10 +21,10 @@ defmodule Rtmp.Protocol.RtmpTime do
 
     iex> Rtmp.Protocol.RtmpTime.to_rtmp_timestamp(1000)
     1000
-    
+
     iex> Rtmp.Protocol.RtmpTime.to_rtmp_timestamp(-1000)
     4294966296
-    
+
     iex> Rtmp.Protocol.RtmpTime.to_rtmp_timestamp(4294968296)
     1000
   """
@@ -43,13 +43,13 @@ defmodule Rtmp.Protocol.RtmpTime do
 
     iex> Rtmp.Protocol.RtmpTime.apply_delta(1000, 500)
     1500
-    
+
     iex> Rtmp.Protocol.RtmpTime.apply_delta(1000, -500)
     500
-    
+
     iex> Rtmp.Protocol.RtmpTime.apply_delta(1000, -2000)
     4294966296
-    
+
     iex> Rtmp.Protocol.RtmpTime.apply_delta(4294966296, 2000)
     1000
   """
@@ -62,13 +62,13 @@ defmodule Rtmp.Protocol.RtmpTime do
   Gets the delta between an old RTMP timestamp and a new RTMP timestamp
 
   ## Examples
-    
+
     iex> Rtmp.Protocol.RtmpTime.get_delta(4000000000, 4000001000)
     1000
-    
+
     iex> Rtmp.Protocol.RtmpTime.get_delta(4000000000, 10000)
     294977296
-    
+
     iex> Rtmp.Protocol.RtmpTime.get_delta(4000000000, 3000000000)
     -1000000000
 

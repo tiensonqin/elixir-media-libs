@@ -1,6 +1,6 @@
 defmodule Rtmp.Protocol.Messages.Acknowledgement do
   @moduledoc """
-    
+
   Sent when the client or the server receives bytes equal to the window
   size.
 

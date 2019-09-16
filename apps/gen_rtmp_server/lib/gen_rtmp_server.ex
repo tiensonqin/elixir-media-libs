@@ -3,7 +3,7 @@ defmodule GenRtmpServer do
   A behaviour module for implementing an RTMP server.
 
   A GenRtmpServer abstracts out the the handling of RTMP connection handling
-  and data so that modules that implement this behaviour can focus on 
+  and data so that modules that implement this behaviour can focus on
   the business logic of the actual RTMP events that are received and
   should be sent.
 

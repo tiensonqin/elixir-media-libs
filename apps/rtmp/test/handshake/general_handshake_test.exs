@@ -9,8 +9,7 @@ defmodule Rtmp.Handshake.GeneralHandshakeTest do
                current_state: :waiting_for_data,
                bytes_to_send: <<3::8, _::binary>>
              }
-           } =
-             Rtmp.Handshake.new(:old)
+           } = Rtmp.Handshake.new(:old)
   end
 
   test "Initial creation of handshake with old format specified returns packet 1" do
@@ -18,8 +17,7 @@ defmodule Rtmp.Handshake.GeneralHandshakeTest do
             %Rtmp.Handshake.ParseResult{
               current_state: :waiting_for_data,
               bytes_to_send: <<_::8, _::4*8, 0::4*8, _::1528*8>>
-            }} =
-             Rtmp.Handshake.new(:old)
+            }} = Rtmp.Handshake.new(:old)
   end
 
   test "Can parse full old format handshake" do

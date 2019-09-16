@@ -44,6 +44,7 @@ defmodule SimpleRtmpProxy.Client do
       Logger.debug(
         "#{state.connection_info.connection_id}: Connection accepted, requesting publishing"
       )
+    GenRtmpClient.set_chunk_size(self(), 4096)
 
     GenRtmpClient.start_publish(self(), state.stream_key, :live)
 
@@ -81,10 +82,15 @@ defmodule SimpleRtmpProxy.Client do
           event.stream_key
         }"
       )
-
     :ok = GenRtmpClient.publish_metadata(self(), state.stream_key, state.metadata)
-    :ok = GenRtmpClient.publish_av_data(self(), state.stream_key, :audio, 0, state.audio_header)
-    :ok = GenRtmpClient.publish_av_data(self(), state.stream_key, :video, 0, state.video_header)
+
+    if state.audio_header do
+      :ok = GenRtmpClient.publish_av_data(self(), state.stream_key, :audio, 0, state.audio_header)
+    end
+
+    if state.video_header do
+      :ok = GenRtmpClient.publish_av_data(self(), state.stream_key, :video, 0, state.video_header)
+    end
 
     state = %{state | status: :publishing}
     {:ok, state}

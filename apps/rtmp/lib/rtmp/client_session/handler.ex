@@ -3,8 +3,8 @@ defmodule Rtmp.ClientSession.Handler do
   This module controls the process that processes the busines logic
   of a client in an RTMP connection.
 
-  When RTMP messages come in from the server, it either responds with 
-  response messages or raises events to be handled by the event 
+  When RTMP messages come in from the server, it either responds with
+  response messages or raises events to be handled by the event
   receiver process.  This allows for consumers to be flexible in how
   they utilize the RTMP client.
   """
@@ -123,7 +123,7 @@ defmodule Rtmp.ClientSession.Handler do
   @spec request_connection(session_handler_process, Rtmp.app_name()) :: :ok
   @doc """
   Executes a request to send an RTMP connection request for the specified application name.  The
-  response will come as a `Rtmp.ClientSession.Events.ConnectionResponseReceived` event.  
+  response will come as a `Rtmp.ClientSession.Events.ConnectionResponseReceived` event.
   """
   def request_connection(pid, app_name) do
     GenServer.cast(pid, {:connect, app_name})
@@ -154,6 +154,9 @@ defmodule Rtmp.ClientSession.Handler do
   """
   def request_publish(pid, stream_key, :live),
     do: GenServer.cast(pid, {:request_publish, stream_key, :live})
+
+  def set_chunk_size(pid, chunk_size),
+    do: GenServer.cast(pid, {:set_chunk_size, chunk_size})
 
   @spec publish_metadata(session_handler_process, Rtmp.stream_key(), Rtmp.StreamMetadata.t()) ::
           :ok
@@ -341,6 +344,26 @@ defmodule Rtmp.ClientSession.Handler do
           Logger.warn(
             "#{state.connection_id}: Attempted requesting publishing while in #{
               state.current_status
+            } state, ignoring..."
+          )
+
+        {:noreply, state}
+    end
+  end
+
+  def handle_cast({:set_chunk_size, chunk_size}, state) do
+    case state.current_status do
+      :connected ->
+        # send set chunk size
+        message = %Messages.SetChunkSize{size: chunk_size}
+        :ok = send_output_message(state, message, 0, false)
+        {:noreply, state}
+
+      _ ->
+        _ =
+          Logger.warn(
+            "#{state.connection_id}: Attempted to set chunk size while in #{
+            state.current_status
             } state, ignoring..."
           )
 

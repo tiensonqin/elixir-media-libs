@@ -367,7 +367,7 @@ defmodule Rtmp.Protocol.ChunkIo do
     end
   end
 
-  ## Serialization Functions  
+  ## Serialization Functions
 
   defp do_serialize(state, message, csid, force_uncompressed) do
     case split_message_to_chunk_size(state, message, [], 0) do

@@ -4,7 +4,7 @@ defmodule GenRtmpClient do
 
   A `GenRtmpClient` abstracts out the functionality and RTMP message flow
   so that modules that implement this behaviour can focus on the high level
-  business logic of how their RTMP client should behave. 
+  business logic of how their RTMP client should behave.
   """
 
   @behaviour Rtmp.Behaviours.EventReceiver
@@ -99,6 +99,10 @@ defmodule GenRtmpClient do
     GenServer.cast(rtmp_client_pid, {:start_publish, stream_key, type})
   end
 
+  def set_chunk_size(rtmp_client_pid, chunk_size) do
+    GenServer.cast(rtmp_client_pid, {:set_chunk_size, chunk_size})
+  end
+
   @spec stop_publish(rtmp_client_pid, Rtmp.stream_key()) :: :ok
   @doc "Stops publishing on the specified stream key"
   def stop_publish(rtmp_client_pid, stream_key) do
@@ -150,11 +154,11 @@ defmodule GenRtmpClient do
 
   def handle_cast({:rtmp_output, binary, packet_type}, state) do
     # If the network buffer becomes full due to a connection that can't handle the amount
-    # of audio/video data going out to the server, we need to compensate by dropping 
+    # of audio/video data going out to the server, we need to compensate by dropping
     # audio/video data as necessary in order to not back everything up.  All non-audio/video
     # messages should not be dropped though.
 
-    # TODO: Should probably make sure sequence header packets are never dropped. 
+    # TODO: Should probably make sure sequence header packets are never dropped.
     # Otherwise the video is useless.
 
     can_be_dropped =
@@ -180,6 +184,11 @@ defmodule GenRtmpClient do
 
   def handle_cast({:start_publish, stream_key, type}, state) do
     :ok = Rtmp.ClientSession.Handler.request_publish(state.session_handler_pid, stream_key, type)
+    {:noreply, state}
+  end
+
+  def handle_cast({:set_chunk_size, chunk_size}, state) do
+    :ok = Rtmp.ClientSession.Handler.set_chunk_size(state.session_handler_pid, chunk_size)
     {:noreply, state}
   end
 
