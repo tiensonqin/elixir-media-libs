@@ -1,6 +1,6 @@
 defmodule Rtmp.ClientSession.Handler do
   @moduledoc """
-  This module controls the process that processes the busines logic
+  This module controls the process that processes the business logic
   of a client in an RTMP connection.
 
   When RTMP messages come in from the server, it either responds with
@@ -30,7 +30,7 @@ defmodule Rtmp.ClientSession.Handler do
   defmodule State do
     @moduledoc false
 
-    defstruct connection_id: nil,
+    defstruct connection_id: nil, # server session id
               configuration: nil,
               start_time: nil,
               protocol_handler_pid: nil,

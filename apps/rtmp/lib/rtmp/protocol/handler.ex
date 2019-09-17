@@ -120,7 +120,7 @@ defmodule Rtmp.Protocol.Handler do
 
   def handle_cast({:send_message, message}, state) do
     raw_message = RawMessage.pack(message)
-    csid = get_csid_for_message_type(raw_message)
+    csid = get_csid_for_message_type(raw_message.message_type_id)
 
     {chunk_io_state, data} = ChunkIo.serialize(state.chunk_io_state, raw_message, csid)
     state = %{state | chunk_io_state: chunk_io_state}
@@ -227,14 +227,13 @@ defmodule Rtmp.Protocol.Handler do
   # different message types among different chunk stream ids.  It also allows
   # video and audio data to track different timestamps then other messages.
   # These numbers are just based on observations of current client-server activity
-  defp get_csid_for_message_type(%RawMessage{message_type_id: 1}), do: 2
-  defp get_csid_for_message_type(%RawMessage{message_type_id: 2}), do: 2
-  defp get_csid_for_message_type(%RawMessage{message_type_id: 3}), do: 2
-  defp get_csid_for_message_type(%RawMessage{message_type_id: 4}), do: 2
-  defp get_csid_for_message_type(%RawMessage{message_type_id: 5}), do: 2
-  defp get_csid_for_message_type(%RawMessage{message_type_id: 6}), do: 2
-  defp get_csid_for_message_type(%RawMessage{message_type_id: 18}), do: 3
-  defp get_csid_for_message_type(%RawMessage{message_type_id: 20}), do: 3
-  defp get_csid_for_message_type(%RawMessage{message_type_id: 9}), do: 21
-  defp get_csid_for_message_type(%RawMessage{message_type_id: 8}), do: 20
+  defp get_csid_for_message_type(message_type_id) do
+    cond do
+      message_type_id in [1, 2, 3, 4, 5, 6] -> 2
+      message_type_id in [18, 19] -> 3
+      message_type_id in [9] -> 4
+      message_type_id in [8] -> 5
+      true -> 6
+    end
+  end
 end

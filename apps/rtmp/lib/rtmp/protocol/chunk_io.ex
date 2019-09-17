@@ -442,17 +442,14 @@ defmodule Rtmp.Protocol.ChunkIo do
           header_to_send.message_stream_id != previous_header.message_stream_id ->
             header_to_send
 
-          header_to_send.message_type_id != previous_header.message_type_id ->
+          header_to_send.message_type_id != previous_header.message_type_id or header_to_send.message_length != previous_header.message_length ->
             %{header_to_send | type: 1, last_timestamp_delta: current_delta}
 
-          header_to_send.message_length != previous_header.message_length ->
-            %{header_to_send | type: 1, last_timestamp_delta: current_delta}
-
-          current_delta != previous_header.last_timestamp_delta ->
-            %{header_to_send | type: 2, last_timestamp_delta: current_delta}
+          header_to_send.timestamp == previous_header.timestamp or header_to_send.last_timestamp_delta == previous_header.last_timestamp_delta ->
+            %{header_to_send | type: 3}
 
           true ->
-            %{header_to_send | type: 3, last_timestamp_delta: current_delta}
+            %{header_to_send | type: 2, last_timestamp_delta: current_delta}
         end
     end
   end

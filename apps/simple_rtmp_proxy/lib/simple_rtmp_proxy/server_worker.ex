@@ -21,6 +21,7 @@ defmodule SimpleRtmpProxy.ServerWorker do
               video_sequence_header: nil,
               audio_sequence_header: nil,
               client_info: nil,
+              # outbound client
               client_pid: nil
   end
 

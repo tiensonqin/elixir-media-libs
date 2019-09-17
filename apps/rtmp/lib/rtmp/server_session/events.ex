@@ -19,7 +19,7 @@ defmodule Rtmp.ServerSession.Events do
 
   defmodule PeerChunkSizeChanged do
     @moduledoc """
-    Event indicating that the peer is changing the maximum size of the 
+    Event indicating that the peer is changing the maximum size of the
     RTMP chunks they will be sending
     """
 
@@ -64,7 +64,7 @@ defmodule Rtmp.ServerSession.Events do
 
   defmodule PublishStreamRequested do
     @moduledoc """
-    Event indicating that the peer is requesting the ability to 
+    Event indicating that the peer is requesting the ability to
     publish on the specified stream key.
     """
 
@@ -98,7 +98,7 @@ defmodule Rtmp.ServerSession.Events do
 
   defmodule StreamMetaDataChanged do
     @moduledoc """
-    Event indicating that the peer is changing metadata properties 
+    Event indicating that the peer is changing metadata properties
     of the stream being published.
     """
 
